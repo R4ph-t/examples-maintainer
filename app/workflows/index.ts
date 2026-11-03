@@ -7,3 +7,4 @@ import "./spec-to-pr/index.js";
 import "./triage/index.js";
 
 import "./maintenance/index.js";
+import "./dependencies/index.js";

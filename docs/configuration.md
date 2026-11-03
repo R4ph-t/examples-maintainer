@@ -431,3 +431,11 @@ otherwise App mode is used. Invalid modes fail closed.
 `SERVICE_ENV.maintenance` now requires only Render credentials, workspace ID,
 and mode. The optional PAT is in a separate `MAINTENANCE_PAT_ENV_GROUP`; do not
 link that group to public deployments. See [standalone setup](maintenance-setup.md).
+
+## Dependency update proposals
+
+`RepoConfig.dependencyUpdates` opts a repository into the dependency loop and
+selects `packageManager: "npm" | "yarn1"`. A maintenance recipe is required. The
+loop tests one stable patch/minor update per run, preserving the package manager
+and frozen-install recipe. See [dependency maintenance](dependency-maintenance.md)
+for supported manifests, artifact limits, scheduling, and result semantics.

@@ -20,6 +20,11 @@ export interface MaintenanceDeps {
 	open?: (repo: RepoContext) => Promise<Sandbox>;
 	prepare?: (sandbox: Sandbox, repo: RepoContext, sha: string) => Promise<void>;
 	github?: (repo: RepoContext) => Pick<GitHubClient, "createMaintenanceCheck">;
+	/** Controller-owned hooks for dependency comparison; never accepted in a Workflow input. */
+	beforeInstall?: (sandbox: Sandbox) => Promise<void>;
+	afterChecks?: (sandbox: Sandbox) => Promise<void>;
+	/** Candidate checks must never publish a status against the unchanged baseline SHA. */
+	publish?: boolean;
 }
 
 /** Plain maintenance work: only an operator with Workflow access may invoke this, using deployed recipes. */
@@ -70,6 +75,7 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 						.then((r) => {
 							if (r.exitCode !== 0) throw new Error("could not prepare smoke runner");
 						});
+					await deps.beforeInstall?.(sandbox);
 					result.stages.push({ name: "prepare", status: "passed", exitCode: 0, durationMs: Date.now() - started, output: "" });
 				} catch {
 					result.stages.push({
@@ -99,6 +105,7 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 						return;
 					}
 				}
+				await deps.afterChecks?.(sandbox);
 				result.status = "passed";
 			},
 			(closed) => {
@@ -109,7 +116,7 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 		result.status = "infrastructure_error";
 	}
 	if (result.cleanup !== "terminated") result.status = "infrastructure_error";
-	if (mode === "public") {
+	if (mode === "public" || deps.publish === false) {
 		result.reporting = "skipped";
 		return MaintenanceResult.parse(result);
 	}

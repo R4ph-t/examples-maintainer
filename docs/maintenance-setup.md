@@ -2,7 +2,8 @@
 
 This deployment tests public example repositories on a daily schedule. It uses
 Render credentials only. GitHub Apps, PATs, webhooks, and model keys are not needed.
-It does not modify examples or recommend dependency patches.
+It produces tested dependency proposals without modifying GitHub repositories.
+See [the dependency loop](dependency-maintenance.md) for policy and retained artifacts.
 
 ## Configuration and coverage
 
@@ -58,7 +59,7 @@ Publish the tested branch before deployment. `render.maintenance.yaml` describes
 
 - `examples-maintainer`: a Workflow, started with `npm run start:maintenance`.
 - `examples-maintainer-daily`: a Starter Cron Job, running
-  `npm run maintenance:dispatch -- --wait` at **03:00 UTC daily**.
+  `npm run maintenance:dependencies -- --wait` at **03:00 UTC daily**.
 
 The cron's `RENDER_WORKFLOW_SLUG` must match the created Workflow's slug. Both
 services link the maintenance group. Manual creation through CLI/API can use
@@ -67,19 +68,20 @@ code push does not silently change the scheduled tests. Workflows and sandboxes
 use metered compute; the cron has its own billing.
 
 Validate the Blueprint against the workspace, deploy the Workflow, and verify
-that `verify-repository` and `maintenance-sweep` are registered. Run one manual
+that `verify-repository`, `maintenance-sweep`, `dependency-review`, and
+`dependency-sweep` are registered. Run one manual
 sweep and inspect its result before enabling the daily cron. A successful deploy
 registers tasks but does not execute them.
 
 ```bash
-npm run maintenance:dispatch -- --dry-run
-npm run maintenance:dispatch -- --wait
+npm run maintenance:dependencies -- --dry-run
+npm run maintenance:dependencies -- --wait --out ./dependency-results
 ```
 
 The second command submits real work, waits for completion, prints the report,
-and exits nonzero for a failed repository, infrastructure failure, or publication
-failure. Public-mode `reporting: skipped` is expected and does not fail a healthy
-run. To run one recipe directly from a local controller:
+and exits nonzero for a failed baseline, rejected candidate, or infrastructure
+failure. GitHub publication remains disabled. The original health-only sweep is
+available as `maintenance:dispatch`. To run one health recipe directly:
 
 ```bash
 npm run maintenance:verify -- --repo render-examples/express-hello-world
@@ -87,10 +89,10 @@ npm run maintenance:verify -- --repo render-examples/express-hello-world
 
 ## Read results
 
-Open the Workflow's run history in Render. The sweep result contains each repo's
-exact SHA, outcome, child run ID, sandbox ID, cleanup status, stage exits, and
-timings. Child results additionally retain bounded command output. Parent results
-exclude repository output. GitHub receives no writes in public mode.
+Open the Workflow's run history in Render. The dependency sweep contains each
+repo's exact SHA, outcome, child run ID, proposed update, and artifact identity.
+Child results retain the diff and full baseline/candidate stage results, bounded
+command output, sandbox IDs, and cleanup status. GitHub receives no writes.
 
 A Workflow run can succeed as a computation while its report contains failures;
 inspect `results[].status`. The cron checks those statuses and fails if any repo
@@ -124,5 +126,6 @@ verification.
 
 Results use Render's Workflow retention. There is no long-term history database,
 custom dashboard, notification service, database fixture provisioning, automatic
-repair, or dependency patching in this phase. Add reviewed recipes to expand
+repair, or GitHub publication in this phase. Tested dependency patches are
+retained by the [dependency loop](dependency-maintenance.md). Add reviewed recipes to expand
 coverage; use the inventory to keep untested repos visible.

@@ -22,7 +22,7 @@ services:
     autoDeployTrigger: off
     schedule: "0 3 * * *"
     buildCommand: npm ci
-    startCommand: npm run maintenance:dispatch -- --wait
+    startCommand: npm run maintenance:dependencies -- --wait
     envVars:
       - fromGroup: examples-maintainer
       - key: RENDER_WORKFLOW_SLUG

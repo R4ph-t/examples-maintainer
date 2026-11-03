@@ -15,6 +15,7 @@ export const REPOSITORY_CASES = [
 export const testConfig: FactoryConfig = {
 	repos: {
 		[REPO]: {
+			dependencyUpdates: { packageManager: "npm" },
 			baseBranch: "main",
 			install: "npm ci",
 			verify: [BUILD_COMMAND, TEST_COMMAND],

@@ -140,3 +140,11 @@ code or untrusted pull requests.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Tested dependency updates
+
+The [dependency loop](docs/dependency-maintenance.md) checks a clean baseline,
+generates one dependency patch, and tests it in a separate fresh Render Sandbox.
+Results retain the exact diff and before/after checks for review. Run
+`npm run maintenance:dependencies -- --wait --out ./dependency-results` to start
+a sweep and export proposals. GitHub publishing remains disabled.

@@ -18,6 +18,17 @@ export function assertEgressHosts(hosts: readonly string[], where: string): void
 /** Checks what the type system can't. Runs when this module loads, so an invalid config stops every service at startup. */
 export function validateConfig(c: FactoryConfig): void {
 	for (const [fullName, repo] of Object.entries(c.repos)) {
+		if (repo.dependencyUpdates && (!repo.maintenance || !["npm", "yarn1"].includes(repo.dependencyUpdates.packageManager))) {
+			throw new Error(`${fullName}: dependencyUpdates requires a maintenance recipe and npm or yarn1`);
+		}
+		if (repo.dependencyUpdates) {
+			const frozen =
+				repo.dependencyUpdates.packageManager === "npm"
+					? "npm ci"
+					: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive";
+			if (repo.maintenance?.install.command !== frozen)
+				throw new Error(`${fullName}: dependency updates require the supported frozen install recipe`);
+		}
 		if (repo.maintenance) MaintenanceRecipe.parse(repo.maintenance);
 		if (repo.egress !== undefined && repo.egress !== "allow-all") assertEgressHosts(repo.egress, `factory.config.ts repos["${fullName}"]`);
 	}
@@ -68,5 +79,7 @@ export const TASKS = {
 	refreshSnapshot: "refresh-snapshot",
 	verifyRepository: "verify-repository",
 	maintenanceSweep: "maintenance-sweep",
+	dependencyReview: "dependency-review",
+	dependencySweep: "dependency-sweep",
 } as const;
 export type TaskName = (typeof TASKS)[keyof typeof TASKS];

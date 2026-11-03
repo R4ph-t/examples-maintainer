@@ -23,6 +23,19 @@ function world() {
 beforeEach(() => vi.restoreAllMocks());
 
 describe("repository verification", () => {
+	it("keeps candidate checks unpublished and cleans up after an artifact validation failure", async () => {
+		const w = world();
+		const result = await runRepositoryVerification(input, "candidate", {
+			...w.deps,
+			publish: false,
+			afterChecks: async () => {
+				throw new Error("untrusted artifact mismatch");
+			},
+		});
+		expect(result).toMatchObject({ status: "infrastructure_error", reporting: "skipped", cleanup: "terminated" });
+		expect(w.report).not.toHaveBeenCalled();
+		expect(w.close).toHaveBeenCalledOnce();
+	});
 	it("checks the selected commit, records every stage, cleans up before reporting, and excludes guest output from GitHub", async () => {
 		const w = world();
 		w.report.mockImplementation(async () => {

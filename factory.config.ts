@@ -5,6 +5,8 @@ export interface RepoConfig {
 	baseBranch: string;
 	/** Opt-in clean-install and application checks; commands are trusted deployment configuration. */
 	maintenance?: MaintenanceRecipe;
+	/** Opt-in direct dependency patch/minor proposals, tested against a clean baseline. */
+	dependencyUpdates?: { packageManager: "npm" | "yarn1" };
 	/** Installs dependencies in the sandbox. Runs after credentials are removed. */
 	install?: string;
 	/** Commands that must pass before a PR opens and that PR Reviewer runs. */
@@ -46,6 +48,7 @@ export function defineFactoryConfig(config: FactoryConfig): FactoryConfig {
 export default defineFactoryConfig({
 	repos: {
 		"render-examples/express-hello-world": {
+			dependencyUpdates: { packageManager: "yarn1" },
 			baseBranch: "main",
 			install: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
 			verify: ["node --check app.js"],
@@ -61,6 +64,7 @@ export default defineFactoryConfig({
 			egress: ["registry.npmjs.org", "registry.yarnpkg.com"],
 		},
 		"render-examples/express-hello-world-typescript": {
+			dependencyUpdates: { packageManager: "yarn1" },
 			baseBranch: "master",
 			install: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
 			verify: ["npm run build"],
@@ -83,6 +87,7 @@ export default defineFactoryConfig({
 			egress: ["registry.npmjs.org", "registry.yarnpkg.com"],
 		},
 		"render-examples/hapi-quick-start": {
+			dependencyUpdates: { packageManager: "npm" },
 			baseBranch: "master",
 			install: "npm ci",
 			verify: ["node --check server.js"],
