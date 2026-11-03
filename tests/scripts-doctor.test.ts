@@ -31,12 +31,12 @@ const APP = {
 	name: "sf",
 	html_url: "https://github.com/apps/sf",
 	owner: { login: "acme", type: "Organization" },
-	permissions: { contents: "write", issues: "write", pull_requests: "write", metadata: "read" },
+	permissions: { contents: "write", checks: "write", issues: "write", pull_requests: "write", metadata: "read" },
 	events: ["issues", "issue_comment", "pull_request", "push"],
 };
 const LABEL_NAMES = ["factory:triage", "factory:spec-approved", "factory:pr-review", "factory:autopilot", "factory:working"];
 const DELIVERY = { id: 1, delivered_at: "2026-10-28T11:59:00Z", status_code: 202, event: "issues" };
-const TASK_NAMES = ["triage", "spec-to-pr", "pr-review", "autopilot", "cancel", "refresh-snapshot"];
+const TASK_NAMES = ["triage", "spec-to-pr", "pr-review", "autopilot", "cancel", "refresh-snapshot", "verify-repository", "maintenance-sweep"];
 
 interface Call {
 	method: string;
@@ -95,7 +95,9 @@ function fakeFetch(world: World = {}) {
 			case "GET api.github.com/app/hook/deliveries/1":
 				return json(world.delivery ?? { ...DELIVERY, url: "https://gw.onrender.com/webhooks/github" }, world.deliveryStatus ?? 200);
 			case "GET api.github.com/repos/acme/web/installation":
-				return world.installed === false ? json({ message: "Not Found" }, 404) : json({ id: 7, ...(world.installation ?? { permissions: APP.permissions, events: APP.events }) });
+				return world.installed === false
+					? json({ message: "Not Found" }, 404)
+					: json({ id: 7, ...(world.installation ?? { permissions: APP.permissions, events: APP.events }) });
 			case "POST api.github.com/app/installations/7/access_tokens":
 				return json({ token: TOKEN, expires_at: new Date(Date.now() + 3_600_000).toISOString() }, 201);
 			case "GET api.github.com/repos/acme/web/labels":
@@ -183,7 +185,11 @@ describe("doctor", () => {
 	it("keeps the gateway's intentional lack of App credentials as a skip", async () => {
 		const { code, find } = await doctor({
 			services: ["gateway"],
-			env: { RENDER_API_KEY: SECRETS.RENDER_API_KEY, GITHUB_WEBHOOK_SECRET: SECRETS.GITHUB_WEBHOOK_SECRET, RENDER_WORKFLOW_SLUG: "factory-workflows" },
+			env: {
+				RENDER_API_KEY: SECRETS.RENDER_API_KEY,
+				GITHUB_WEBHOOK_SECRET: SECRETS.GITHUB_WEBHOOK_SECRET,
+				RENDER_WORKFLOW_SLUG: "factory-workflows",
+			},
 		});
 		expect(code).toBe(0);
 		expect(find("skip", "no App credentials")).toBeDefined();

@@ -14,3 +14,5 @@ export {
 export { GitHubHttp, type GitHubHttpOptions, type RequestOptions, type TokenProvider } from "./request.js";
 export * from "./types.js";
 export * from "./git-data.js";
+
+export { maintenanceRevision } from "./maintenance.js";

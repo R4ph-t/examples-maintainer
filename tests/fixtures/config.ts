@@ -14,7 +14,16 @@ export const REPOSITORY_CASES = [
 /** Unit tests never read the operator's deployment settings. Keep security-sensitive expectations explicit. */
 export const testConfig: FactoryConfig = {
 	repos: {
-		[REPO]: { baseBranch: "main", install: "npm ci", verify: [BUILD_COMMAND, TEST_COMMAND] },
+		[REPO]: {
+			baseBranch: "main",
+			install: "npm ci",
+			verify: [BUILD_COMMAND, TEST_COMMAND],
+			maintenance: {
+				install: { name: "install", command: "npm ci", timeoutSeconds: 60 },
+				checks: [{ name: "build", command: BUILD_COMMAND, timeoutSeconds: 60 }],
+				smoke: { start: "npm start", port: 3001, path: "/", expectedStatus: 200, bodyIncludes: "hello", timeoutSeconds: 5 },
+			},
+		},
 		...Object.fromEntries(REPOSITORY_CASES.map(({ repo, baseBranch, verify }) => [repo, { baseBranch, verify: [...verify] }])),
 	},
 	labels: {

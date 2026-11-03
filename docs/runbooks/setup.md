@@ -147,7 +147,7 @@ Ask the user to open the printed URL, review the manifest, and select
 
 The manifest requests:
 
-- Contents, Issues, and Pull requests: write;
+- Contents, Checks, Issues, and Pull requests: write;
 - Metadata: read; and
 - Issues, Issue comments, Pull requests, and Pushes events.
 

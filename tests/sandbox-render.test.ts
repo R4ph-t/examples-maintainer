@@ -6,7 +6,17 @@ import type { SandboxExecEvent } from "@renderinc/sdk/experimental";
 import { list as listTar } from "tar";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { config, type RepoContext } from "../app/config/index.js";
-import { buildSnapshot, type OpenSandboxDeps, openSandbox, type SandboxApi, SandboxClient, type SnapshotManifest } from "../app/sandbox/index.js";
+import {
+	buildSnapshot,
+	type OpenSandboxDeps,
+	openFreshSandbox,
+	openSandbox,
+	prepareFreshCheckout,
+	withSandbox,
+	type SandboxApi,
+	SandboxClient,
+	type SnapshotManifest,
+} from "../app/sandbox/index.js";
 import { runnerPayload } from "../app/sandbox/snapshot.js";
 
 /** The files in a gzipped tar, by path. */
@@ -411,5 +421,39 @@ describe("openSandbox", () => {
 		fake.overrides = (_id, command) => (command.includes("verify.sh") ? [out(info({ runnerNonDumpable: false })), exit(0)] : []);
 		await expect(openSandbox(repo(), { kind: "branch", name: "main" }, deps())).rejects.toThrow("non-dumpable");
 		expect(fake.calls.at(-1)).toEqual({ op: "terminate", id: "sbx-1" });
+	});
+});
+
+describe("fresh maintenance sandboxes", () => {
+	it("starts without a snapshot, pins the checkout, strips credentials and closes even when preparation fails", async () => {
+		const api = new FakeApi();
+		const client = new SandboxClient(api.api(), { minRequestIntervalMs: 0, pollMs: 1 });
+		const readToken = async () => TOKEN;
+		const cleanup: boolean[] = [];
+		await withSandbox(
+			() => openFreshSandbox(repo({ egress: ["registry.npmjs.org"] }), client),
+			async (sandbox) => {
+				await prepareFreshCheckout(client, sandbox.id, repo(), BASE_SHA, { readToken });
+			},
+			(closed) => cleanup.push(closed),
+		);
+		expect(api.calls.find((c) => c.op === "create")).toMatchObject({ input: { timeoutSeconds: 1800 } });
+		expect(api.calls.some((c) => c.op.startsWith("snapshot."))).toBe(false);
+		const creation = api.calls.find((c) => c.op === "create");
+		if (creation?.op !== "create") throw new Error("no create call");
+		expect(creation.input?.snapshotName).toBeUndefined();
+		expect(creation.input?.networkPolicy).toEqual(allowList("github.com", "deb.debian.org", "registry.npmjs.org"));
+		expect(api.calls.filter((c) => c.op === "exec").some((c) => c.command.includes(BASE_SHA))).toBe(true);
+		expect(api.calls.filter((c) => c.op === "exec").some((c) => c.command.includes("npm ci"))).toBe(false);
+		expect(cleanup).toEqual([true]);
+
+		api.overrides = (_id, command) => (command.includes("scrub-credentials.sh") ? [exit(1)] : []);
+		await expect(
+			withSandbox(
+				() => openFreshSandbox(repo(), client),
+				(sandbox) => prepareFreshCheckout(client, sandbox.id, repo(), BASE_SHA, { readToken }),
+			),
+		).rejects.toThrow("credential scrub failed");
+		expect(api.calls.filter((c) => c.op === "terminate")).toHaveLength(2);
 	});
 });

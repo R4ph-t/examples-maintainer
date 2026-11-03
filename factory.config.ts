@@ -1,6 +1,10 @@
+import type { MaintenanceRecipe } from "./app/schemas/maintenance.js";
+
 export interface RepoConfig {
 	/** Branch that specs are implemented against and snapshots are built from. */
 	baseBranch: string;
+	/** Opt-in clean-install and application checks; commands are trusted deployment configuration. */
+	maintenance?: MaintenanceRecipe;
 	/** Installs dependencies in the sandbox. Runs after credentials are removed. */
 	install?: string;
 	/** Commands that must pass before a PR opens and that PR Reviewer runs. */
@@ -41,11 +45,20 @@ export function defineFactoryConfig(config: FactoryConfig): FactoryConfig {
 
 export default defineFactoryConfig({
 	repos: {
-		"render-examples/render-factory-example-target": {
+		"render-examples/express-hello-world": {
 			baseBranch: "main",
-			install: "npm ci",
-			verify: ["npm run build", "npm test"],
-			egress: ["registry.npmjs.org"],
+			install: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
+			verify: ["node --check app.js"],
+			maintenance: {
+				install: {
+					name: "install",
+					command: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
+					timeoutSeconds: 180,
+				},
+				checks: [{ name: "syntax", command: "node --check app.js", timeoutSeconds: 30 }],
+				smoke: { start: "PORT=3001 node app.js", port: 3001, path: "/", expectedStatus: 200, bodyIncludes: "Hello from Render!", timeoutSeconds: 30 },
+			},
+			egress: ["registry.npmjs.org", "registry.yarnpkg.com"],
 		},
 	},
 	labels: {

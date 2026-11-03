@@ -94,57 +94,13 @@ export async function buildSnapshot(client: SandboxClient, repo: RepoContext, sh
 	const name = snapshotName(repo);
 	const t = client.t;
 	const prepare = { timeoutMs: t.prepareTimeoutMs };
-	const boot = { timeoutMs: t.bootTimeoutMs };
 	const started = Date.now();
 	log("info", "snapshot build started", { repo: repo.fullName, sha, snapshot: name });
 
 	const egress = builderEgress(repo);
 	const { id } = await client.call(() => client.api.create({ timeoutSeconds: BUILDER_TIMEOUT_SECONDS, networkPolicy: egress }));
 	try {
-		await client.waitRunning(id);
-
-		// ── 1. Scripts, tools, runner user, self-test ───────────────────
-		await client.check(id, `mkdir -p -m 700 ${STAGING_DIR}`, { ...boot, waitReady: true });
-		// Uploaded as an opaque .tgz and extracted in the sandbox: the upload endpoint rejects an
-		// uncompressed tar of the bundled runner's JavaScript, and doesn't accept application/gzip.
-		const payload = await runnerPayload();
-		await client.upload(id, `${STAGING_DIR}/stage.tgz`, await stagingArchive(payload));
-		await client.check(id, `tar -xzf ${STAGING_DIR}/stage.tgz -C ${STAGING_DIR} && rm ${STAGING_DIR}/stage.tgz`, boot);
-		await client.check(
-			id,
-			`mkdir -p ${APP_DIR}/runner ${APP_DIR}/build ${REPO_DIR} ${SCRATCH_DIR}` +
-				` && cp ${STAGING_DIR}/*.sh ${APP_DIR}/ && cp ${STAGING_DIR}/build/*.sh ${APP_DIR}/build/` +
-				` && cp -R ${STAGING_DIR}/runner/. ${APP_DIR}/runner/`,
-			boot,
-		);
-		await client.check(id, `bash ${APP_DIR}/install-tools.sh`, prepare);
-		const node = await nodePath(client, id);
-		await client.check(id, createRunnerUserCommand(), boot);
-		await client.upload(id, `${APP_DIR}/env`, envFileContent(node));
-		await client.upload(id, `${APP_DIR}/gitconfig`, SANDBOX_GITCONFIG);
-		// The self-test executes third-party code (the bundled packages); the token arrives only after it passes.
-		await client.check(
-			id,
-			[
-				`chmod 755 ${SANDBOX_ROOT}`,
-				`chmod -R a+rX,go-w ${APP_DIR}`,
-				`chown ${RUN_AS}: ${SCRATCH_DIR}`,
-				`chmod 700 ${SCRATCH_DIR}`,
-				`timeout 120 ${asRunner(node, `${APP_DIR}/runner/runner.mjs`, "--self-test")}`,
-			].join(" && "),
-			prepare,
-		);
-
-		// ── 2. Token, clone, scrub ───────────────────────────────────────
-		const token = await (deps.readToken ?? readToken)(repo);
-		await client.check(id, `mkdir -p -m 700 ${STAGING_CREDS}`, boot);
-		await client.upload(id, `${STAGING_CREDS}/github.com`, credentialFile(token));
-		await client.check(id, cloneCommand(repo, sha), prepare);
-		const scrub = await client.exec(id, `bash ${APP_DIR}/build/scrub-credentials.sh ${STAGING_CREDS} ${REPO_DIR} ${SCRATCH_DIR}/home`, prepare);
-		if (scrub.exitCode !== 0) throw new Error(`credential scrub failed: ${(scrub.stderr || scrub.stdout).trim().slice(-2000)}`);
-
-		// ── 3. Runner-owned checkout, install as the runner ──────────────
-		await client.check(id, `chown -R ${RUN_AS}: ${REPO_DIR}`, prepare);
+		const node = await prepareFreshCheckout(client, id, repo, sha, deps);
 		const lockfileHash = await computeLockfileHash(client, id);
 		const install = repo.config.install?.trim() || null;
 		if (install) await runInstall(client, id, install, egressHint(repo, egress));
@@ -169,6 +125,67 @@ export async function buildSnapshot(client: SandboxClient, repo: RepoContext, sh
 	} finally {
 		await client.terminateQuietly(id);
 	}
+}
+
+/** Prepares a new sandbox at an exact commit, removing clone credentials before repository code can run.
+ * The caller owns the sandbox through withSandbox (or buildSnapshot's finally). No dependencies or snapshots are reused.
+ */
+export async function prepareFreshCheckout(
+	client: SandboxClient,
+	id: string,
+	repo: RepoContext,
+	sha: string,
+	deps: SnapshotDeps = {},
+): Promise<string> {
+	if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("expected an exact commit SHA");
+	if (!SAFE_REF.test(repo.config.baseBranch)) throw new Error("unsupported base branch");
+	const prepare = { timeoutMs: client.t.prepareTimeoutMs };
+	const boot = { timeoutMs: client.t.bootTimeoutMs };
+	await client.waitRunning(id);
+
+	// ── 1. Scripts, tools, runner user, self-test ───────────────────
+	await client.check(id, `mkdir -p -m 700 ${STAGING_DIR}`, { ...boot, waitReady: true });
+	// Uploaded as an opaque .tgz and extracted in the sandbox: the upload endpoint rejects an
+	// uncompressed tar of the bundled runner's JavaScript, and doesn't accept application/gzip.
+	const payload = await runnerPayload();
+	await client.upload(id, `${STAGING_DIR}/stage.tgz`, await stagingArchive(payload));
+	await client.check(id, `tar -xzf ${STAGING_DIR}/stage.tgz -C ${STAGING_DIR} && rm ${STAGING_DIR}/stage.tgz`, boot);
+	await client.check(
+		id,
+		`mkdir -p ${APP_DIR}/runner ${APP_DIR}/build ${REPO_DIR} ${SCRATCH_DIR}` +
+			` && cp ${STAGING_DIR}/*.sh ${APP_DIR}/ && cp ${STAGING_DIR}/build/*.sh ${APP_DIR}/build/` +
+			` && cp -R ${STAGING_DIR}/runner/. ${APP_DIR}/runner/`,
+		boot,
+	);
+	await client.check(id, `bash ${APP_DIR}/install-tools.sh`, prepare);
+	const node = await nodePath(client, id);
+	await client.check(id, createRunnerUserCommand(), boot);
+	await client.upload(id, `${APP_DIR}/env`, envFileContent(node));
+	await client.upload(id, `${APP_DIR}/gitconfig`, SANDBOX_GITCONFIG);
+	// The self-test executes third-party code (the bundled packages); the token arrives only after it passes.
+	await client.check(
+		id,
+		[
+			`chmod 755 ${SANDBOX_ROOT}`,
+			`chmod -R a+rX,go-w ${APP_DIR}`,
+			`chown ${RUN_AS}: ${SCRATCH_DIR}`,
+			`chmod 700 ${SCRATCH_DIR}`,
+			`timeout 120 ${asRunner(node, `${APP_DIR}/runner/runner.mjs`, "--self-test")}`,
+		].join(" && "),
+		prepare,
+	);
+
+	// ── 2. Token, clone, scrub ───────────────────────────────────────
+	const token = await (deps.readToken ?? readToken)(repo);
+	await client.check(id, `mkdir -p -m 700 ${STAGING_CREDS}`, boot);
+	await client.upload(id, `${STAGING_CREDS}/github.com`, credentialFile(token));
+	await client.check(id, cloneCommand(repo, sha), prepare);
+	const scrub = await client.exec(id, `bash ${APP_DIR}/build/scrub-credentials.sh ${STAGING_CREDS} ${REPO_DIR} ${SCRATCH_DIR}/home`, prepare);
+	if (scrub.exitCode !== 0) throw new Error(`credential scrub failed: ${(scrub.stderr || scrub.stdout).trim().slice(-2000)}`);
+
+	// ── 3. Runner-owned checkout, install as the runner ──────────────
+	await client.check(id, `chown -R ${RUN_AS}: ${REPO_DIR}`, prepare);
+	return node;
 }
 
 /** The base image's node, which the runner and the repository's tools run under. */

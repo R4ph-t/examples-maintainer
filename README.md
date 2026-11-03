@@ -1,3 +1,22 @@
+# examples-maintainer
+
+Scheduled, commit-pinned health checks for Render example repositories, built
+as a fork of [software-factory](https://github.com/render-examples/software-factory).
+
+The first implementation adds `verify-repository`, `maintenance-sweep`, and
+`npm run maintenance:dispatch`. Each repository runs in a fresh Render Sandbox;
+results include stage outcomes, application smoke tests, and cleanup status,
+with a GitHub Check on the tested commit. The Express pilot is configured.
+
+Start with [Example maintenance](docs/maintenance.md) for recipes, dispatch,
+setup requirements, local-versus-live validation, and the remaining roadmap.
+Deployment and scheduling are manual. Dependency upgrades and agent-assisted
+repair are planned; the current maintenance tasks make no model calls.
+
+The original factory capabilities remain available below.
+
+---
+
 # software-factory
 
 software-factory is an extensible template for building GitHub-native coding agent

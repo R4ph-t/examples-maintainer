@@ -10,7 +10,7 @@ import { REQUIRED_EVENTS, REQUIRED_PERMISSIONS } from "./requirements.js";
 
 /** The gateway doesn't exist yet. setup:github sets the real URL; the hook stays inactive until then. */
 export const PLACEHOLDER_WEBHOOK_URL = "https://example.com/software-factory-gateway-not-deployed";
-const HOMEPAGE = "https://github.com/render-examples/software-factory";
+const HOMEPAGE = "https://github.com/R4ph-t/examples-maintainer";
 
 export interface Manifest {
 	name: string;
@@ -27,7 +27,7 @@ export function buildManifest(opts: { name: string; redirectUrl: string }): Mani
 	return {
 		name: opts.name,
 		url: HOMEPAGE,
-		description: "software-factory: labeled issue to spec to draft PR to review, on Render.",
+		description: "Verify example repositories in Render Sandboxes and maintain them through reviewed pull requests.",
 		hook_attributes: { url: PLACEHOLDER_WEBHOOK_URL, active: false },
 		redirect_url: opts.redirectUrl,
 		public: false,
@@ -82,7 +82,7 @@ export function formPage(manifest: Manifest, action: string, repos: readonly str
 	return page(
 		`Create ${manifest.name}`,
 		`<h1>Create the ${escapeHtml(manifest.name)} GitHub App</h1>` +
-			"<p>It requests Contents, Issues, and Pull requests (write) and Metadata (read), and subscribes to " +
+			"<p>It requests Contents, Checks, Issues, and Pull requests (write) and Metadata (read), and subscribes to " +
 			"issues, issue comments, pull requests, and pushes. Its webhook starts inactive; " +
 			"<code>npm run setup:github</code> points it at your gateway after you deploy.</p>" +
 			`<p>Install it on every repository in <code>factory.config.ts</code>:</p><ul>${repoList}</ul>` +

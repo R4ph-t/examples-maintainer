@@ -1,3 +1,4 @@
+import { MaintenanceRecipe } from "../schemas/maintenance.js";
 import config, { type FactoryConfig, type RepoConfig } from "../../factory.config.js";
 
 export { config, type RepoConfig };
@@ -17,6 +18,7 @@ export function assertEgressHosts(hosts: readonly string[], where: string): void
 /** Checks what the type system can't. Runs when this module loads, so an invalid config stops every service at startup. */
 export function validateConfig(c: FactoryConfig): void {
 	for (const [fullName, repo] of Object.entries(c.repos)) {
+		if (repo.maintenance) MaintenanceRecipe.parse(repo.maintenance);
 		if (repo.egress !== undefined && repo.egress !== "allow-all") assertEgressHosts(repo.egress, `factory.config.ts repos["${fullName}"]`);
 	}
 }
@@ -64,5 +66,7 @@ export const TASKS = {
 	autopilot: "autopilot",
 	cancel: "cancel",
 	refreshSnapshot: "refresh-snapshot",
+	verifyRepository: "verify-repository",
+	maintenanceSweep: "maintenance-sweep",
 } as const;
 export type TaskName = (typeof TASKS)[keyof typeof TASKS];

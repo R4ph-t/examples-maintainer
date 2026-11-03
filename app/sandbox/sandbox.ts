@@ -4,7 +4,7 @@ import type { SandboxNetworkPolicy } from "@renderinc/sdk/experimental";
 import { z } from "zod";
 import { config, type RepoContext } from "../config/index.js";
 import { type SandboxClient, sandboxClient } from "./client.js";
-import { egressHint, taskEgress } from "./egress.js";
+import { builderEgress, egressHint, taskEgress } from "./egress.js";
 import { errorMessage, log, SAFE_REF } from "./shell.js";
 import {
 	asRunner,
@@ -54,6 +54,12 @@ function connectSandbox(id: string, client?: SandboxClient): Sandbox {
 	};
 }
 
+/** Creates an empty maintenance sandbox. Preparation runs inside withSandbox so early failures are cleaned up too. */
+export async function openFreshSandbox(repo: RepoContext, client: SandboxClient = sandboxClient()): Promise<Sandbox> {
+	const { id } = await client.call(() => client.api.create({ timeoutSeconds: 1800, networkPolicy: builderEgress(repo) }));
+	return connectSandbox(id, client);
+}
+
 export interface OpenSandboxDeps extends SnapshotDeps {
 	client?: SandboxClient;
 	resolveBaseHead?: (repo: RepoContext, deps: SnapshotDeps) => Promise<string>;
@@ -99,12 +105,22 @@ export async function openSandbox(repo: RepoContext, ref: SandboxRef, deps: Open
  * Opens a sandbox, runs `fn` with it, and closes it whatever happens. Every task uses this, so no task can forget
  * to close one; the provider-side timeout covers a Workflows process that dies before `finally` runs.
  */
-export async function withSandbox<S extends Sandbox, T>(open: () => Promise<S>, fn: (sandbox: S) => Promise<T>): Promise<T> {
+export async function withSandbox<S extends Sandbox, T>(
+	open: () => Promise<S>,
+	fn: (sandbox: S) => Promise<T>,
+	onCleanup?: (closed: boolean) => void,
+): Promise<T> {
 	const sandbox = await open();
 	try {
 		return await fn(sandbox);
 	} finally {
-		await sandbox.close().catch((err: unknown) => log("warn", "could not close sandbox", { sandbox: sandbox.id, error: errorMessage(err) }));
+		try {
+			await sandbox.close();
+			onCleanup?.(true);
+		} catch (err) {
+			log("warn", "could not close sandbox", { sandbox: sandbox.id, error: errorMessage(err) });
+			onCleanup?.(false);
+		}
 	}
 }
 

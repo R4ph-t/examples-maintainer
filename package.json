@@ -1,11 +1,11 @@
 {
-  "name": "software-factory",
+  "name": "examples-maintainer",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/render-examples/software-factory.git"
+    "url": "git+https://github.com/R4ph-t/examples-maintainer.git"
   },
   "type": "module",
   "engines": {
@@ -24,7 +24,8 @@
     "lint": "biome lint --error-on-warnings app scripts tests factory.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "maintenance:dispatch": "node --env-file-if-exists=.env --import tsx scripts/start-maintenance.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.83.0",

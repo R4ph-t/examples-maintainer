@@ -54,6 +54,27 @@ export class GitHubClient {
 		return login;
 	}
 
+	/** One completed check per maintenance run; POST is intentionally not retried after an ambiguous response. */
+	async createMaintenanceCheck(args: {
+		headSha: string;
+		externalId: string;
+		conclusion: "success" | "failure" | "action_required";
+		summary: string;
+	}): Promise<{ htmlUrl: string }> {
+		const raw = await this.http.json<{ html_url: string }>("POST", `${this.base}/check-runs`, {
+			body: {
+				name: "examples-maintainer / health",
+				head_sha: args.headSha,
+				external_id: args.externalId,
+				status: "completed",
+				conclusion: args.conclusion,
+				completed_at: new Date().toISOString(),
+				output: { title: "Example health verification", summary: args.summary },
+			},
+		});
+		return { htmlUrl: raw.html_url };
+	}
+
 	async getIssue(number: number): Promise<Issue> {
 		return toIssue(await this.http.json<RawIssue>("GET", `${this.base}/issues/${number}`));
 	}

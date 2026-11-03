@@ -8,11 +8,13 @@ import { WORKING_LABEL } from "../../app/claims/status.js";
  * - contents: write — Git Data API publishing (blobs, trees, commits, refs) and read-only clone tokens.
  * - issues: write — comments, status labels, the label timeline, and creating labels.
  * - pull_requests: write — opening draft PRs, reading diffs and files, posting COMMENT reviews.
+ * - checks: write — commit-bound example maintenance results.
  * - metadata: read — collaborator permission checks; GitHub grants it to every App.
  * No `workflows` permission: publishing refuses changes under .github/workflows.
  */
 export const REQUIRED_PERMISSIONS: Readonly<Record<string, "read" | "write">> = {
 	contents: "write",
+	checks: "write",
 	issues: "write",
 	pull_requests: "write",
 	metadata: "read",

@@ -18,6 +18,7 @@ describe("App manifest", () => {
 	it("requests exactly the permissions and events the factory uses", () => {
 		expect(manifest.default_permissions).toEqual({
 			contents: "write",
+			checks: "write",
 			issues: "write",
 			pull_requests: "write",
 			metadata: "read",
@@ -65,7 +66,7 @@ const APP = {
 	name: "sf",
 	html_url: "https://github.com/apps/sf",
 	owner: { login: "acme", type: "Organization" },
-	permissions: { contents: "write", issues: "write", pull_requests: "write", metadata: "read" },
+	permissions: { contents: "write", checks: "write", issues: "write", pull_requests: "write", metadata: "read" },
 	events: ["issues", "issue_comment", "pull_request", "push"],
 };
 const TOKEN = "ghs_installationTOKEN123";

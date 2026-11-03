@@ -388,3 +388,14 @@ and create each group in the table with the exact name and variables shown.
 Paste values from `.env` or from their source without showing them in chat.
 Workflows `doctor` still reads these values locally, so export them in the
 shell where it runs.
+
+## Repository maintenance
+
+A repository can opt into clean-install health checks with `maintenance` in
+`factory.config.ts`. The typed recipe contains `install`, ordered `checks`,
+and a required HTTP `smoke` assertion. Configuration validation rejects empty
+commands, duplicate stage names, invalid ports, and excessive timeouts.
+
+See [Example maintenance](maintenance.md) for the canonical recipe, dispatcher,
+GitHub App `checks: write` requirement, scheduling, results, and limits. This
+extension uses existing credentials and introduces no new environment variables.

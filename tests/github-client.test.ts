@@ -96,3 +96,34 @@ describe("GitHubClient", () => {
 		});
 	});
 });
+
+describe("maintenance checks", () => {
+	it("binds a completed check to the exact commit and run without retrying the write", async () => {
+		const { fetch, calls } = fakeFetch(json({ html_url: "https://github.test/check/1" }, { status: 201 }));
+		const headSha = "a".repeat(40);
+		const result = await client(fetch).createMaintenanceCheck({
+			headSha,
+			externalId: "examples-maintainer:run-1",
+			conclusion: "failure",
+			summary: "install: failed",
+		});
+		expect(result.htmlUrl).toBe("https://github.test/check/1");
+		expect(calls).toHaveLength(1);
+		expect(calls[0]).toMatchObject({
+			method: "POST",
+			url: `${API}/repos/acme/web/check-runs`,
+			body: {
+				name: "examples-maintainer / health",
+				head_sha: headSha,
+				external_id: "examples-maintainer:run-1",
+				status: "completed",
+				conclusion: "failure",
+			},
+		});
+		const lost = fakeFetch(new Error("response lost"));
+		await expect(
+			client(lost.fetch).createMaintenanceCheck({ headSha, externalId: "examples-maintainer:run-2", conclusion: "success", summary: "passed" }),
+		).rejects.toThrow();
+		expect(lost.calls).toHaveLength(1);
+	});
+});

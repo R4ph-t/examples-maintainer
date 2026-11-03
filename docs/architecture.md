@@ -23,7 +23,7 @@ The Blueprint deploys two services:
 - **Workflows** runs tasks, manages Sandboxes, and writes to GitHub.
 
 The application does not implement its own queue, dispatcher, heartbeat
-process, maintenance loop, or database.
+process, background maintenance loop, or database.
 
 ## Workflow
 
@@ -288,3 +288,20 @@ Start with:
 
 Use the [extension runbook](runbooks/extend.md) to add agents, tasks, or
 triggers.
+
+## Maintenance extension
+
+The fork adds two plain tasks: `verify-repository` and `maintenance-sweep`.
+They operate on operator-selected exact commits using deployed recipes and
+make no issue/PR claims or model calls. The dispatcher resolves configured
+repositories and submits a bounded sweep; children run sequentially.
+
+Fresh verification shares the existing bootstrap and credential scrub path,
+but does not restore dependency snapshots. It runs repository commands as the
+unprivileged user, then publishes a completed Check only after sandbox cleanup
+has been attempted. GitHub App write credentials remain on the host.
+
+Workflows retains the returned health report; GitHub Checks provide the commit
+view. The provider timeout covers hard cancellation, and results distinguish
+unconfirmed cleanup. There is no persistent scheduler ledger, global lock, or
+notification service. See [maintenance](maintenance.md) for operation and limits.

@@ -86,6 +86,8 @@ beforeAll(async () => {
 		HOME: join(tmp, "home"),
 		GIT_CONFIG_GLOBAL: join(tmp, "home/.gitconfig"),
 		GIT_CONFIG_NOSYSTEM: "1",
+		// --system reads ignore GIT_CONFIG_NOSYSTEM; isolate the real credential helper on macOS.
+		GIT_CONFIG_SYSTEM: "/dev/null",
 		DATABASE_URL: "postgres://must-not-leak",
 	};
 
