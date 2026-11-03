@@ -1,12 +1,15 @@
 # Example maintenance
 
-This fork adds a model-free health check to software-factory. The first pilot
-is `render-examples/express-hello-world`. It installs dependencies in a new
-Render Sandbox, checks JavaScript syntax, starts the server, and verifies that
-`GET /` returns HTTP 200 and contains `Hello from Render!`.
+This fork adds model-free repository health checks and tested dependency
+proposals to software-factory. Four examples are configured: Express JavaScript,
+Express TypeScript, Hapi, and Django. Fresh Render Sandboxes install dependencies,
+run each repository's configured checks, and verify an HTTP response.
 
-The pilot has no build or unit-test script; the result does not invent those
-checks. It also does not exercise browser assets or prove a Render deployment.
+The recipes distinguish JavaScript syntax checks, TypeScript compilation, and
+Django system/migration checks. These examples have no substantive unit-test
+suite; the results do not invent one or prove a production Render deployment.
+See [dependency maintenance](dependency-maintenance.md) for audited update
+proposals and gated draft PR publication.
 
 ## Read-only deployment
 
@@ -29,9 +32,11 @@ failures, never successful checks. [Git ls-remote](https://git-scm.com/docs/git-
 and [Git HTTP/configuration](https://git-scm.com/docs/git-config) document these
 transport and configuration controls.
 
-The configured pilot now includes Express JavaScript, Express TypeScript, and
-Hapi. `npm run maintenance:inventory` distinguishes configured repos from those
-still needing a reviewed recipe.
+The Django pilot uses an isolated SQLite database for system checks, migrations,
+and a Gunicorn HTTP smoke check. It does not verify managed PostgreSQL behavior.
+See [Python maintenance](python-maintenance.md) for the requirements adapter and
+its limits. `npm run maintenance:inventory` distinguishes configured repos from
+those still needing a reviewed recipe.
 
 ## What runs
 
@@ -44,11 +49,14 @@ Each run:
 1. Creates an empty sandbox with an HTTPS allow-list and a 30-minute runtime timeout.
 2. Prepares the factory's unprivileged user and clones the exact commit.
 3. Deletes and checks clone credentials before running repository code.
-4. Records Node/npm versions and runs install and configured checks in order.
+4. Records the selected Node/npm or Python/pip runtime and runs install and
+   configured checks in order.
 5. Starts the application, checks its localhost response, and stops its process
    group, including descendants that outlive their parent.
 6. Terminates the sandbox, recording whether termination was confirmed.
-7. Publishes one completed GitHub Check on the tested commit.
+7. Reports a GitHub Check in App mode, a commit status in PAT mode, or skips
+   publication in public mode. Dependency baseline/candidate checks always skip
+   this publication; a separate gated task handles draft proposals.
 
 No dependency snapshot is restored or created. Every command has a guest
 `timeout` and a separate client deadline. The host controls the smoke-test
@@ -64,8 +72,8 @@ concurrency limits before expanding the fleet.
 
 ## Configure a recipe
 
-The example in `factory.config.ts` is ready for the Express pilot. Add a
-`maintenance` object to opt another repository in:
+The four pilots have recipes in `factory.config.ts`. Add a `maintenance` object
+to opt another repository into health verification:
 
 ```typescript
 maintenance: {
@@ -88,30 +96,35 @@ maintenance: {
 Only add commands the example actually provides. Install/check names must be
 unique; `prepare`, `runtime`, and `smoke` are reserved. All recipe timeouts
 together must fit within 15 minutes, leaving room for bootstrap and cleanup.
-The first version uses the factory's existing base runtime (Node >=22), records
-its actual version, and does not pin an image digest or provision databases.
-Python and database fixtures are follow-up work.
+Recipes can select `runtime: "node"` (the default) or `runtime: "python"`.
+The bootstrap installs the required tools and records actual versions; explicit
+per-repository runtime versions and image digests are not pinned. The Django
+pilot provisions a temporary SQLite file. Managed database, Redis, and other
+external-service fixtures remain follow-up work.
 
 The Express pilot uses its existing Yarn v1 lockfile. The recipe invokes pinned
 Yarn 1.22.22 through npm exec and installs with `--frozen-lockfile`; both registry
 hosts are allow-listed. This preserves the example's documented package manager.
-A separate dependency refresh mode is follow-up work.
+The [dependency loop](dependency-maintenance.md) generates an exact update
+artifact, compares baseline/candidate [security audits](security-audits.md), and
+repeats the recipe in a separate clean sandbox.
 
 ## PAT authentication for the scheduled maintainer
 
 The scheduled maintenance path can use `MAINTENANCE_GITHUB_TOKEN` instead of a
 GitHub App. This is an explicit controller credential; it does not use an
-ambient `GH_TOKEN`. When set, it takes precedence over App credentials for
-maintenance only. The inherited issue-to-PR agent workflows still use the App.
+ambient `GH_TOKEN`. When no explicit `MAINTENANCE_MODE` is set, this token selects PAT mode for
+maintenance only. Explicit public mode still disables GitHub authentication. The inherited issue-to-PR agent workflows still use the App.
 
-For public examples, the controller validates repository visibility, resolves
-the commit through the API, and clones anonymously in the sandbox. No PAT,
+In PAT mode, the controller validates public repository visibility, resolves
+the commit through the authenticated API, and clones anonymously in the sandbox. No PAT,
 App token, or model key enters that sandbox. Private or renamed repositories
 are refused before creating a sandbox; private PAT cloning is not implemented.
 
 Create a fine-grained PAT for the organization and selected repositories.
-Current verification needs Contents read and Commit statuses write. The planned
-patch/PR phase additionally needs Contents write and Pull requests write.
+Health verification needs Contents read and Commit statuses write. The implemented
+[draft publisher](dependency-publishing.md) additionally needs Contents write and
+Pull requests write, and remains disabled until both publication opt-ins are set.
 The token acts with the user's existing access; organization approval and token
 expiry still apply. A pending approval is not usable write access.
 
@@ -124,7 +137,7 @@ verification without a hosted Workflow:
 npm run maintenance:verify -- --repo render-examples/express-hello-world
 ```
 
-This command creates a sandbox and publishes a status. It fails if verification,
+In PAT mode, this command creates a sandbox and publishes a status. It fails if verification,
 cleanup, or publication fails. `maintenance:dispatch -- --dry-run` performs only
 read operations. PAT dispatch inputs omit `installationId`; App dispatch inputs
 still include it.
@@ -135,8 +148,8 @@ The result's `checkUrl` points to the status API resource in PAT mode. Detailed
 stage output remains in the Workflow result (or CLI JSON), not on GitHub. Status
 writes are not retried after an ambiguous response.
 
-For hosting, use `npm run start:maintenance` to register only the two maintenance
-tasks. It needs the three variables in `SERVICE_ENV.maintenance`, supplied through
+For hosting, `npm run start:maintenance` registers the five health, dependency
+review/sweep, and draft-publication tasks, without the inherited agent workflows. It needs the three variables in `SERVICE_ENV.maintenance`, supplied through
 the `examples-maintainer` environment group in `MAINTENANCE_ENV_GROUPS`. No
 webhook gateway, App installation, or model provider key is needed. The inherited
 `setup:render` and doctor commands remain specific to the full App-based factory;
@@ -146,14 +159,14 @@ they do not provision or validate this standalone deployment.
 
 Follow the existing [setup runbook](runbooks/setup.md) for the fork. Keep its
 human checkpoints for App installation, credentials, paid services, and webhook
-activation. This change itself does not deploy or schedule anything.
+activation. Public and PAT maintenance do not require this App-based setup.
 
 The App now needs `checks: write`, in addition to its existing permissions.
 Update the App and accept the installation's new permission, then rerun
 `npm run setup:github` and the existing doctor checks. Deploy the Workflows
-service to register `verify-repository` and `maintenance-sweep`.
+service to register the health and dependency tasks.
 
-This feature needs Render and GitHub App credentials, but makes no model calls.
+This App-based path needs Render and GitHub App credentials, but makes no model calls.
 The full inherited factory setup still expects the agent harness's model key;
 maintenance does not pass that key to its sandbox. The task gateway and its
 existing bot filters are unchanged.
@@ -170,28 +183,31 @@ npm run maintenance:dispatch
 
 The dry run reads GitHub and prints the pinned input and idempotency key. It
 creates no sandbox, Workflow run, or GitHub Check. Dispatch additionally needs
-`RENDER_API_KEY` and `RENDER_WORKFLOW_SLUG`; both commands need
-`MAINTENANCE_GITHUB_TOKEN`, or `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`,
-in local `.env` or the environment.
+`RENDER_API_KEY` and `RENDER_WORKFLOW_SLUG`. Public mode needs no GitHub
+credential. PAT mode needs `MAINTENANCE_GITHUB_TOKEN`; App mode needs
+`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, in local `.env` or the environment.
 
 The default window is today's UTC date. Supply `--window YYYY-MM-DD` for a
 specific window. The key includes the window, repository SHAs, and recipes,
 so a retry in the same window can deduplicate while the same unchanged commit
-can be tested the next day. The SDK's start idempotency lasts 24 hours and is
-scoped to the deployed Workflow version; it is not a permanent run ledger.
+can be tested the next day. Provider idempotency has bounded retention and can reuse an earlier run across
+Workflow versions; it is not a permanent run ledger. Use a distinct key for a
+fresh acceptance run after changing execution behavior.
 
 For a daily schedule, configure one Render Cron Job from this fork with:
 
 - build command: `npm ci`
-- start command: `npm run maintenance:dispatch`
+- start command: `npm run maintenance:dependencies -- --wait`
 - schedule: `0 3 * * *` (03:00 UTC; 04:00 or 05:00 in Paris)
-- the four dispatcher variables above, supplied through environment groups
+- the approved scoped Render key, workspace ID, Workflow slug, and maintenance
+  mode supplied through environment groups; GitHub credentials only when needed
 
 `render.maintenance.yaml` includes the daily Cron Job. Start scheduling only
 after the manual acceptance run. The dispatcher returns the parent run ID; without `--wait` it
 does not wait for tests to finish. The scheduled job uses `--wait` and exits
-nonzero for an unhealthy sweep. Inspect Workflow results and
-commit Checks for outcomes.
+nonzero for an unhealthy sweep. The Blueprint uses the audited dependency loop;
+`maintenance:dispatch -- --wait` remains available for health-only checks. Inspect
+Workflow results for all modes, and GitHub artifacts when publication is enabled.
 
 ## Interpret results
 
@@ -215,7 +231,8 @@ reconciliation and a durable run ledger remain follow-up work.
 
 ## Acceptance before scheduling
 
-Use a disposable pilot repository authorized for the App:
+For App-mode health acceptance, use a disposable pilot repository authorized
+for the App:
 
 1. Run the healthy commit; require passing response and confirmed cleanup.
 2. Change the returned text on a disposable branch and select a reachable
@@ -235,11 +252,14 @@ GitHub, and Workflow tests use fakes. These do not prove live Render execution.
 
 ## Next increments
 
-- Python/database recipes and explicit runtime image selection.
-- Retained dependency inventories and searchable health history.
-- Renovate candidate triggers, baseline/candidate comparison, and bounded
-  repairs verified in a separate sandbox.
+- Broader Python package-manager support, managed-service fixtures, and explicit
+  runtime/image selection.
+- More reviewed repository recipes, retained dependency inventories, and
+  searchable health history.
+- Candidate coverage beyond one update per repository, external triggers, and
+  bounded repair rounds verified in separate sandboxes.
 - Persistent coordination, cleanup reconciliation, and change-only digests.
 
-No dependency updates, repository patches, PRs, merges, or deployments are
-performed by these maintenance tasks.
+Health-only tasks do not modify repositories. The dependency loop generates and
+tests patches; its separately gated publisher can create or reuse draft PRs.
+No maintenance task automatically merges changes or deploys an updated example.
