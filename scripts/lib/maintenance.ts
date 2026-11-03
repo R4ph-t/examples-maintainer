@@ -6,7 +6,7 @@ import { MaintenanceRecipe, MaintenanceSweepInput } from "../../app/schemas/inde
 export async function planMaintenance(
 	config: FactoryConfig,
 	window: string,
-	resolve: (repo: string, branch: string) => Promise<{ installationId: number; sha: string }>,
+	resolve: (repo: string, branch: string) => Promise<{ installationId?: number; sha: string }>,
 ) {
 	if (
 		!/^\d{4}-\d{2}-\d{2}$/.test(window) ||

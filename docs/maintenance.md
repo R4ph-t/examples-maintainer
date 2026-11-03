@@ -72,7 +72,52 @@ Yarn 1.22.22 through npm exec and installs with `--frozen-lockfile`; both regist
 hosts are allow-listed. This preserves the example's documented package manager.
 A separate dependency refresh mode is follow-up work.
 
-## Prepare the deployment
+## PAT authentication for the scheduled maintainer
+
+The scheduled maintenance path can use `MAINTENANCE_GITHUB_TOKEN` instead of a
+GitHub App. This is an explicit controller credential; it does not use an
+ambient `GH_TOKEN`. When set, it takes precedence over App credentials for
+maintenance only. The inherited issue-to-PR agent workflows still use the App.
+
+For public examples, the controller validates repository visibility, resolves
+the commit through the API, and clones anonymously in the sandbox. No PAT,
+App token, or model key enters that sandbox. Private or renamed repositories
+are refused before creating a sandbox; private PAT cloning is not implemented.
+
+Create a fine-grained PAT for the organization and selected repositories.
+Current verification needs Contents read and Commit statuses write. The planned
+patch/PR phase additionally needs Contents write and Pull requests write.
+The token acts with the user's existing access; organization approval and token
+expiry still apply. A pending approval is not usable write access.
+
+Save the token in ignored local `.env`, or the controller's Render environment
+group. Never put it in a recipe, task input, guest environment, or git remote.
+With `RENDER_API_KEY` and `RENDER_WORKSPACE_ID` also configured, run one live
+verification without a hosted Workflow:
+
+```bash
+npm run maintenance:verify -- --repo render-examples/express-hello-world
+```
+
+This command creates a sandbox and publishes a status. It fails if verification,
+cleanup, or publication fails. `maintenance:dispatch -- --dry-run` performs only
+read operations. PAT dispatch inputs omit `installationId`; App dispatch inputs
+still include it.
+
+PATs publish commit statuses under `examples-maintainer / health`, mapping
+infrastructure failures to `error`. GitHub reserves Check Run creation for Apps.
+The result's `checkUrl` points to the status API resource in PAT mode. Detailed
+stage output remains in the Workflow result (or CLI JSON), not on GitHub. Status
+writes are not retried after an ambiguous response.
+
+For hosting, use `npm run start:maintenance` to register only the two maintenance
+tasks. It needs the three variables in `SERVICE_ENV.maintenance`, supplied through
+the `examples-maintainer` environment group in `MAINTENANCE_ENV_GROUPS`. No
+webhook gateway, App installation, or model provider key is needed. The inherited
+`setup:render` and doctor commands remain specific to the full App-based factory;
+they do not provision or validate this standalone deployment.
+
+## Prepare the App-based deployment
 
 Follow the existing [setup runbook](runbooks/setup.md) for the fork. Keep its
 human checkpoints for App installation, credentials, paid services, and webhook
@@ -91,7 +136,7 @@ existing bot filters are unchanged.
 ## Preview and start a sweep
 
 Use a checkout matching the deployed configuration. The dispatcher resolves
-each opted-in repository's App installation and current base-branch SHA.
+each opted-in repository's current base-branch SHA and, in App mode, its installation.
 
 ```bash
 npm run maintenance:dispatch -- --dry-run
@@ -101,7 +146,8 @@ npm run maintenance:dispatch
 The dry run reads GitHub and prints the pinned input and idempotency key. It
 creates no sandbox, Workflow run, or GitHub Check. Dispatch additionally needs
 `RENDER_API_KEY` and `RENDER_WORKFLOW_SLUG`; both commands need
-`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` in local `.env` or the environment.
+`MAINTENANCE_GITHUB_TOKEN`, or `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`,
+in local `.env` or the environment.
 
 The default window is today's UTC date. Supply `--window YYYY-MM-DD` for a
 specific window. The key includes the window, repository SHAs, and recipes,

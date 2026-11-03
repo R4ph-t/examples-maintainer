@@ -47,6 +47,8 @@ const SANDBOX_GITCONFIG = "[core]\n\tfsmonitor = false\n[advice]\n\tdetachedHead
 const GITHUB_TOKEN_USER = "x-access-token";
 
 export interface SnapshotDeps {
+	/** Public maintenance checkouts need no credential in the guest. Caller must verify repository visibility. */
+	publicCheckout?: boolean;
 	/** A read-only token for the repository. Defaults to a GitHub App installation token with `contents: read`. */
 	readToken?: (repo: RepoContext) => Promise<string>;
 }
@@ -176,10 +178,12 @@ export async function prepareFreshCheckout(
 	);
 
 	// ── 2. Token, clone, scrub ───────────────────────────────────────
-	const token = await (deps.readToken ?? readToken)(repo);
-	await client.check(id, `mkdir -p -m 700 ${STAGING_CREDS}`, boot);
-	await client.upload(id, `${STAGING_CREDS}/github.com`, credentialFile(token));
-	await client.check(id, cloneCommand(repo, sha), prepare);
+	if (!deps.publicCheckout) {
+		const token = await (deps.readToken ?? readToken)(repo);
+		await client.check(id, `mkdir -p -m 700 ${STAGING_CREDS}`, boot);
+		await client.upload(id, `${STAGING_CREDS}/github.com`, credentialFile(token));
+	}
+	await client.check(id, cloneCommand(repo, sha, deps.publicCheckout), prepare);
 	const scrub = await client.exec(id, `bash ${APP_DIR}/build/scrub-credentials.sh ${STAGING_CREDS} ${REPO_DIR} ${SCRATCH_DIR}/home`, prepare);
 	if (scrub.exitCode !== 0) throw new Error(`credential scrub failed: ${(scrub.stderr || scrub.stdout).trim().slice(-2000)}`);
 
@@ -219,10 +223,10 @@ function envFileContent(nodePath: string): string {
 }
 
 /** Clones the base branch into REPO_DIR and checks out `sha` on a local branch named after it. */
-function cloneCommand(repo: RepoContext, sha: string): string {
+function cloneCommand(repo: RepoContext, sha: string, publicCheckout = false): string {
 	const url = `https://github.com/${repo.owner}/${repo.name}.git`;
 	const branch = repo.config.baseBranch;
-	const auth = credentialHelperArgs(STAGING_CREDS).map(shq).join(" ");
+	const auth = (publicCheckout ? ["-c", "credential.helper="] : credentialHelperArgs(STAGING_CREDS)).map(shq).join(" ");
 	return [
 		`GIT_TERMINAL_PROMPT=0 git ${auth} clone --quiet --single-branch --branch ${shq(branch)} --no-tags -- ${shq(url)} ${REPO_DIR}`,
 		`git -C ${REPO_DIR} checkout --quiet -B ${shq(branch)} ${sha}`,

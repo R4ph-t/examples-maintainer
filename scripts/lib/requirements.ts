@@ -61,7 +61,7 @@ export const LABELS: readonly LabelSpec[] = [
 	{ name: WORKING_LABEL, color: "fbca04", description: "software-factory is working on this", trigger: false },
 ];
 
-export type Service = "gateway" | "workflows";
+export type Service = "gateway" | "workflows" | "maintenance";
 
 /** The credential each agent's harness declares (app/agents/), once each, in agent order. Workflows sends them to its sandboxes. */
 export const HARNESS_KEY_ENV: readonly string[] = [...new Set(AGENTS.map((agent) => agent.harness.credential))];
@@ -70,6 +70,7 @@ export const HARNESS_KEY_ENV: readonly string[] = [...new Set(AGENTS.map((agent)
 export const SERVICE_ENV: Readonly<Record<Service, readonly string[]>> = {
 	gateway: ["GITHUB_WEBHOOK_SECRET", "RENDER_API_KEY", "RENDER_WORKFLOW_SLUG"],
 	workflows: ["RENDER_API_KEY", "RENDER_WORKSPACE_ID", "GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", ...HARNESS_KEY_ENV],
+	maintenance: ["RENDER_API_KEY", "RENDER_WORKSPACE_ID", "MAINTENANCE_GITHUB_TOKEN"],
 };
 
 export interface EnvGroupSpec {
@@ -94,13 +95,18 @@ export const ENV_GROUPS: readonly EnvGroupSpec[] = [
 	},
 ];
 
+/** Standalone scheduled maintenance deployment; never linked to the webhook gateway. */
+export const MAINTENANCE_ENV_GROUPS: readonly EnvGroupSpec[] = [
+	{ name: "examples-maintainer", services: ["maintenance"], keys: SERVICE_ENV.maintenance },
+];
+
 /** The group a service reads `key` from, if any. */
 export function envGroupFor(service: Service, key: string): EnvGroupSpec | undefined {
-	return ENV_GROUPS.find((group) => group.services.includes(service) && group.keys.includes(key));
+	return [...ENV_GROUPS, ...MAINTENANCE_ENV_GROUPS].find((group) => group.services.includes(service) && group.keys.includes(key));
 }
 
 /** Values doctor must never print. */
-export const SECRET_ENV: readonly string[] = ["GITHUB_WEBHOOK_SECRET", "RENDER_API_KEY", "GITHUB_APP_PRIVATE_KEY"];
+export const SECRET_ENV: readonly string[] = ["GITHUB_WEBHOOK_SECRET", "RENDER_API_KEY", "GITHUB_APP_PRIVATE_KEY", "MAINTENANCE_GITHUB_TOKEN"];
 
 const LEVELS = ["none", "read", "write", "admin"];
 

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { requireRepo, type RepoContext } from "../../config/index.js";
-import { type GitHubClient, githubFor } from "../../github/index.js";
+import { assertPublicMaintenanceRepo, type GitHubClient, maintenanceReporter, maintenanceUsesPat } from "../../github/index.js";
 import {
 	APP_DIR,
 	openFreshSandbox,
@@ -25,8 +25,12 @@ export interface MaintenanceDeps {
 /** Plain maintenance work: only an operator with Workflow access may invoke this, using deployed recipes. */
 export async function runRepositoryVerification(raw: unknown, runId: string, deps: MaintenanceDeps = {}): Promise<MaintenanceResult> {
 	const input = VerifyRepositoryInput.parse(raw);
-	const repo = requireRepo(input.repo, input.installationId);
+	const publicCheckout = maintenanceUsesPat();
+	if (!publicCheckout && !input.installationId)
+		throw new Error("App maintenance requires an installationId; alternatively configure MAINTENANCE_GITHUB_TOKEN");
+	const repo = requireRepo(input.repo, input.installationId ?? 0);
 	const recipe = MaintenanceRecipe.parse(repo.config.maintenance);
+	if (publicCheckout) await assertPublicMaintenanceRepo(repo.fullName);
 	const script = await readFile(fileURLToPath(new URL("../../../sandbox/maintenance-smoke.mjs", import.meta.url)));
 	const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 	const result: MaintenanceResult = {
@@ -57,7 +61,7 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 				const started = Date.now();
 				try {
 					if (deps.prepare) await deps.prepare(sandbox, repo, input.sha);
-					else await prepareFreshCheckout(getClient(), sandbox.id, repo, input.sha);
+					else await prepareFreshCheckout(getClient(), sandbox.id, repo, input.sha, { publicCheckout });
 					// This file is root-owned outside the checkout. Repository commands cannot replace the verifier.
 					await sandbox.upload(`${APP_DIR}/maintenance-smoke.mjs.gz`, gzipSync(script));
 					await sandbox
@@ -107,7 +111,7 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 
 	// Only controller-owned metadata leaves for GitHub; repository stdout cannot inject mentions or leak credentials.
 	try {
-		const gh = (deps.github ?? githubFor)(repo);
+		const gh = (deps.github ?? maintenanceReporter)(repo);
 		const check = await gh.createMaintenanceCheck({
 			headSha: input.sha,
 			externalId: `examples-maintainer:${runId}`,

@@ -40,7 +40,7 @@ export const VerifyRepositoryInput = z.strictObject({
 		.string()
 		.regex(/^[\w.-]+\/[\w.-]+$/)
 		.max(200),
-	installationId: z.number().int().positive(),
+	installationId: z.number().int().positive().optional(),
 	sha: z.string().regex(/^[0-9a-f]{40}$/),
 });
 export type VerifyRepositoryInput = z.infer<typeof VerifyRepositoryInput>;

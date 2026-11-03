@@ -425,6 +425,22 @@ describe("openSandbox", () => {
 });
 
 describe("fresh maintenance sandboxes", () => {
+	it("clones a public repository without obtaining or uploading any GitHub credential", async () => {
+		let tokenRequested = false;
+		await prepareFreshCheckout(client(), "sbx-public", repo(), BASE_SHA, {
+			publicCheckout: true,
+			readToken: async () => {
+				tokenRequested = true;
+				throw new Error("must not request token");
+			},
+		});
+		expect(tokenRequested).toBe(false);
+		expect(fake.calls.some((c) => c.op === "upload" && c.path.includes("creds"))).toBe(false);
+		const clone = fake.commands().find((c) => c.includes(" clone "));
+		expect(clone).toContain(BASE_SHA);
+		expect(clone).not.toContain("git-credential-staged");
+		expect(fake.commands().some((c) => c.includes("scrub-credentials.sh"))).toBe(true);
+	});
 	it("starts without a snapshot, pins the checkout, strips credentials and closes even when preparation fails", async () => {
 		const api = new FakeApi();
 		const client = new SandboxClient(api.api(), { minRequestIntervalMs: 0, pollMs: 1 });

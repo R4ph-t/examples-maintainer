@@ -399,3 +399,17 @@ commands, duplicate stage names, invalid ports, and excessive timeouts.
 See [Example maintenance](maintenance.md) for the canonical recipe, dispatcher,
 GitHub App `checks: write` requirement, scheduling, results, and limits. This
 extension uses existing credentials and introduces no new environment variables.
+
+## Standalone PAT maintenance
+
+`MAINTENANCE_GITHUB_TOKEN` selects PAT authentication for the maintenance tasks
+and dispatcher. `npm run start:maintenance` registers only these tasks. Its
+required values are listed in `SERVICE_ENV.maintenance` and
+`MAINTENANCE_ENV_GROUPS`: `RENDER_API_KEY`, `RENDER_WORKSPACE_ID`, and
+`MAINTENANCE_GITHUB_TOKEN`. Keep the group separate from the gateway.
+
+This mode supports public repositories, clones anonymously, and publishes commit
+statuses. The controller keeps the PAT; no GitHub credential enters the guest.
+App installation IDs are optional only for PAT maintenance. The full factory's
+App authentication and model-key requirements remain unchanged. See
+[maintenance setup](maintenance.md#pat-authentication-for-the-scheduled-maintainer).

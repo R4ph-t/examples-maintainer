@@ -305,3 +305,13 @@ Workflows retains the returned health report; GitHub Checks provide the commit
 view. The provider timeout covers hard cancellation, and results distinguish
 unconfirmed cleanup. There is no persistent scheduler ledger, global lock, or
 notification service. See [maintenance](maintenance.md) for operation and limits.
+
+### PAT maintenance boundary
+
+The standalone maintenance entrypoint registers only the maintenance tasks.
+An explicitly configured `MAINTENANCE_GITHUB_TOKEN` selects controller-side PAT
+API calls and commit-status publication. Public-repository metadata is validated
+before sandbox creation; cloning is anonymous, with no credential staging.
+Private repositories are rejected in this mode. App-based maintenance retains
+repository-scoped read-only clone tokens and Check Runs. PAT mode does not change
+the inherited agent workflows' authentication or publishing authority.
