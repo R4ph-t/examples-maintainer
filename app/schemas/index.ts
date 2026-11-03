@@ -13,3 +13,6 @@ export {
 	MaintenanceSweepResult,
 	VerifyRepositoryInput,
 } from "./maintenance.js";
+
+export * from "./audits.js";
+export * from "./dependency-publishing.js";

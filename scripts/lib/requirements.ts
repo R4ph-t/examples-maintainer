@@ -108,7 +108,7 @@ export const MAINTENANCE_SETUP_GROUPS: readonly EnvGroupSpec[] = MAINTENANCE_ENV
 export const MAINTENANCE_PAT_ENV_GROUP: EnvGroupSpec = {
 	name: "examples-maintainer-github",
 	services: ["maintenance"],
-	keys: ["MAINTENANCE_GITHUB_TOKEN"],
+	keys: ["MAINTENANCE_GITHUB_TOKEN", "MAINTENANCE_PUBLISH_DRAFTS"],
 };
 
 /** The group a service reads `key` from, if any. */

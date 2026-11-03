@@ -8,25 +8,21 @@ import {
 	type DependencyCandidate,
 	type DependencyDiscovery,
 	type MaintenanceResult,
+	type AuditReport,
 	VerifyRepositoryInput,
 } from "../../schemas/index.js";
 import { type MaintenanceDeps, runRepositoryVerification } from "../maintenance/verify.js";
 import { buildArtifact } from "./artifact.js";
-import { discoverUpdates } from "./discovery.js";
-import { applyArtifact, inspectFiles, installFileHelper, regenerateLock, writeCandidateManifest } from "./files.js";
+import { dependencyAdapter, type DependencyFileOps } from "./adapters.js";
+import { compareAuditReports, prioritizeCandidates } from "./audit.js";
 
 export interface DependencyReviewDeps {
 	verify?: (input: unknown, runId: string, deps: MaintenanceDeps) => Promise<MaintenanceResult>;
 	open?: (repo: RepoContext) => Promise<Sandbox>;
 	prepare?: (sandbox: Sandbox, repo: RepoContext, sha: string) => Promise<void>;
 	discover?: (snapshot: DependencySnapshot) => Promise<DependencyDiscovery>;
-	files?: {
-		install: typeof installFileHelper;
-		inspect: typeof inspectFiles;
-		apply: typeof applyArtifact;
-		update: typeof writeCandidateManifest;
-		lock: typeof regenerateLock;
-	};
+	audit?: (sandbox: Sandbox, installed: Record<string, string>) => Promise<AuditReport>;
+	files?: DependencyFileOps;
 }
 
 /** One bounded candidate, with independent baseline, generation, and clean verification sandboxes. No publication. */
@@ -44,13 +40,9 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 		completedAt: new Date().toISOString(),
 	};
 	const verify = deps.verify ?? runRepositoryVerification;
-	const files = deps.files ?? {
-		install: installFileHelper,
-		inspect: inspectFiles,
-		apply: applyArtifact,
-		update: writeCandidateManifest,
-		lock: regenerateLock,
-	};
+	const adapter = dependencyAdapter(manager);
+	const files = deps.files ?? adapter.files;
+	const audit = deps.audit ?? adapter.audit;
 	let pristine: DependencySnapshot | undefined;
 	let installed: DependencySnapshot | undefined;
 	try {
@@ -62,6 +54,9 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 			},
 			afterChecks: async (s) => {
 				installed = await files.inspect(s, manager, true);
+				result.audit = { baseline: await audit(s, installed.installed) };
+				const afterAudit = await files.inspect(s, manager, true);
+				if (!isDeepStrictEqual(installed, afterAudit)) throw new Error("Audit changed the baseline");
 			},
 		});
 		assertIdentity(result.baseline, input, runId);
@@ -71,7 +66,12 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 			return finish(result);
 		}
 		if (!pristine || !installed || !isDeepStrictEqual(pristine.files, installed.files)) throw new Error("Baseline changed its dependency files");
-		result.discovery = await (deps.discover ?? discoverUpdates)(installed);
+		if (result.audit?.baseline.status !== "completed") {
+			result.reason = "audit_unavailable";
+			return finish(result);
+		}
+		result.discovery = await (deps.discover ?? adapter.discover)(installed);
+		result.discovery.candidates = prioritizeCandidates(result.discovery.candidates, result.audit.baseline);
 		const candidate: DependencyCandidate | undefined = result.discovery.candidates[0];
 		if (!candidate) {
 			const incomplete = result.discovery.skipped.some((s) => ["registry_unavailable", "unresolved_version"].includes(s.reason));
@@ -122,7 +122,13 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 				await files.apply(s, artifact);
 			},
 			afterChecks: async (s) => {
+				const beforeAudit = await files.inspect(s, manager, true);
+				const candidateAudit = await audit(s, beforeAudit.installed);
+				if (!result.audit) throw new Error("Missing baseline audit");
+				result.audit.candidate = candidateAudit;
+				result.audit.comparison = compareAuditReports(result.audit.baseline, candidateAudit);
 				const checked = await files.inspect(s, manager, true);
+				if (!isDeepStrictEqual(beforeAudit, checked)) throw new Error("Audit changed the candidate");
 				if (
 					!isDeepStrictEqual(
 						checked.files,
@@ -153,6 +159,12 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 		) {
 			result.status = "infrastructure_error";
 			result.reason = "artifact_mismatch";
+		} else if (result.audit.comparison?.status === "unavailable" || !result.audit.comparison) {
+			result.status = "infrastructure_error";
+			result.reason = "audit_unavailable";
+		} else if (result.audit.comparison.status === "blocked") {
+			result.status = "security_blocked";
+			result.reason = "security_regression";
 		} else result.status = "ready_for_review";
 	} catch (error) {
 		result.status = "infrastructure_error";

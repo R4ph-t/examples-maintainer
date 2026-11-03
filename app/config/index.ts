@@ -18,14 +18,20 @@ export function assertEgressHosts(hosts: readonly string[], where: string): void
 /** Checks what the type system can't. Runs when this module loads, so an invalid config stops every service at startup. */
 export function validateConfig(c: FactoryConfig): void {
 	for (const [fullName, repo] of Object.entries(c.repos)) {
-		if (repo.dependencyUpdates && (!repo.maintenance || !["npm", "yarn1"].includes(repo.dependencyUpdates.packageManager))) {
-			throw new Error(`${fullName}: dependencyUpdates requires a maintenance recipe and npm or yarn1`);
+		if (repo.dependencyUpdates && (!repo.maintenance || !["npm", "yarn1", "pip"].includes(repo.dependencyUpdates.packageManager))) {
+			throw new Error(`${fullName}: dependencyUpdates requires a maintenance recipe and npm, yarn1, or pip`);
 		}
 		if (repo.dependencyUpdates) {
+			if ((repo.dependencyUpdates.packageManager === "pip") !== (repo.maintenance?.runtime === "python"))
+				throw new Error(`${fullName}: dependency manager must match recipe runtime`);
+			if (repo.dependencyUpdates.publishDrafts !== undefined && typeof repo.dependencyUpdates.publishDrafts !== "boolean")
+				throw new Error(`${fullName}: publishDrafts must be boolean`);
 			const frozen =
-				repo.dependencyUpdates.packageManager === "npm"
-					? "npm ci"
-					: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive";
+				repo.dependencyUpdates.packageManager === "pip"
+					? "python3 -m venv .venv && .venv/bin/python -m pip install --disable-pip-version-check --no-input --only-binary=:all: -r requirements.txt"
+					: repo.dependencyUpdates.packageManager === "npm"
+						? "npm ci"
+						: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive";
 			if (repo.maintenance?.install.command !== frozen)
 				throw new Error(`${fullName}: dependency updates require the supported frozen install recipe`);
 		}
@@ -81,5 +87,6 @@ export const TASKS = {
 	maintenanceSweep: "maintenance-sweep",
 	dependencyReview: "dependency-review",
 	dependencySweep: "dependency-sweep",
+	dependencyPublish: "dependency-publish",
 } as const;
 export type TaskName = (typeof TASKS)[keyof typeof TASKS];

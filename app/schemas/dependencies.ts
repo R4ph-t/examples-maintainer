@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { DependencyPublishResult } from "./dependency-publishing.js";
+import { AuditReport, AuditComparison } from "./audits.js";
 import { MaintenanceResult, VerifyRepositoryInput } from "./maintenance.js";
 
 export const DependencyName = z
@@ -11,7 +13,7 @@ export const StableVersion = z
 	.max(50);
 export const DependencyCandidate = z.strictObject({
 	name: DependencyName,
-	section: z.enum(["dependencies", "devDependencies"]),
+	section: z.enum(["dependencies", "devDependencies", "requirements"]),
 	fromRange: z.string().max(100),
 	fromVersion: StableVersion,
 	toVersion: StableVersion,
@@ -21,12 +23,12 @@ export const DependencyCandidate = z.strictObject({
 export type DependencyCandidate = z.infer<typeof DependencyCandidate>;
 
 export const DependencyFile = z.strictObject({
-	path: z.enum(["package.json", "package-lock.json", "yarn.lock"]),
+	path: z.enum(["package.json", "package-lock.json", "yarn.lock", "requirements.txt"]),
 	content: z.string().max(180_000),
 });
 export const DependencySnapshot = z.strictObject({
-	files: z.array(DependencyFile).length(2),
-	installed: z.record(DependencyName, StableVersion).refine((v) => Object.keys(v).length <= 100),
+	files: z.array(DependencyFile).min(1).max(2),
+	installed: z.record(DependencyName, z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9.!+_-]{0,99}$/)).refine((v) => Object.keys(v).length <= 100),
 });
 export type DependencySnapshot = z.infer<typeof DependencySnapshot>;
 export const DependencyArtifact = z.strictObject({
@@ -34,7 +36,8 @@ export const DependencyArtifact = z.strictObject({
 	baseSha: VerifyRepositoryInput.shape.sha,
 	files: z
 		.array(z.strictObject({ path: DependencyFile.shape.path, before: DependencyFile.shape.content, after: DependencyFile.shape.content }))
-		.length(2),
+		.min(1)
+		.max(2),
 	patch: z.string().min(1).max(360_000),
 });
 export type DependencyArtifact = z.infer<typeof DependencyArtifact>;
@@ -51,8 +54,17 @@ export const DependencyReviewResult = z
 		repo: VerifyRepositoryInput.shape.repo,
 		sha: VerifyRepositoryInput.shape.sha,
 		runId: z.string().min(1).max(200),
-		status: z.enum(["ready_for_review", "no_eligible_update", "baseline_failed", "candidate_failed", "generation_failed", "infrastructure_error"]),
+		status: z.enum([
+			"ready_for_review",
+			"no_eligible_update",
+			"baseline_failed",
+			"candidate_failed",
+			"generation_failed",
+			"security_blocked",
+			"infrastructure_error",
+		]),
 		publishing: z.literal("disabled"),
+		audit: z.strictObject({ baseline: AuditReport, candidate: AuditReport.optional(), comparison: AuditComparison.optional() }).optional(),
 		baseline: MaintenanceResult.optional(),
 		verification: MaintenanceResult.optional(),
 		discovery: DependencyDiscovery.optional(),
@@ -63,11 +75,20 @@ export const DependencyReviewResult = z
 				sandboxId: z.string().max(200).nullable(),
 				cleanup: z.enum(["not_created", "terminated", "unconfirmed"]),
 				output: z.string().max(4096),
-			exitCode: z.number().int().nullable(),
+				exitCode: z.number().int().nullable(),
 			})
 			.optional(),
 		reason: z
-			.enum(["baseline_unhealthy", "candidate_unhealthy", "generation_rejected", "artifact_mismatch", "lookup_incomplete", "unconfirmed_execution"])
+			.enum([
+				"baseline_unhealthy",
+				"candidate_unhealthy",
+				"generation_rejected",
+				"artifact_mismatch",
+				"lookup_incomplete",
+				"unconfirmed_execution",
+				"audit_unavailable",
+				"security_regression",
+			])
 			.optional(),
 		lookupHttpStatus: z.number().int().min(400).max(599).optional(),
 		completedAt: z.iso.datetime(),
@@ -77,6 +98,9 @@ export const DependencyReviewResult = z
 		const checks = [r.baseline, r.verification];
 		const ids = [r.baseline?.sandboxId, r.generation?.sandboxId, r.verification?.sandboxId];
 		if (
+			r.audit?.baseline.status !== "completed" ||
+			r.audit?.candidate?.status !== "completed" ||
+			r.audit?.comparison?.status !== "passed" ||
 			!r.candidate ||
 			!r.artifact ||
 			r.artifact.baseSha !== r.sha ||
@@ -101,6 +125,7 @@ export const DependencySweepResult = z.strictObject({
 				runId: z.string().max(200).optional(),
 				candidate: DependencyCandidate.optional(),
 				artifactId: DependencyArtifact.shape.id.optional(),
+				publication: DependencyPublishResult.optional(),
 				reason: z.string().max(100).optional(),
 			}),
 		)

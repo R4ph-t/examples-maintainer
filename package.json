@@ -26,6 +26,7 @@
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm test",
     "maintenance:dispatch": "node --env-file-if-exists=.env --import tsx scripts/start-maintenance.ts",
+    "maintenance:publish": "node --env-file-if-exists=.env --import tsx scripts/publish-dependency.ts",
     "maintenance:dependencies": "node --env-file-if-exists=.env --import tsx scripts/start-dependency-maintenance.ts",
     "start:maintenance": "tsx app/entrypoints/maintenance.ts",
     "maintenance:verify": "node --env-file-if-exists=.env --import tsx scripts/verify-maintenance.ts",

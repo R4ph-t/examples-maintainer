@@ -88,7 +88,7 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 					return;
 				}
 				const steps = [
-					{ name: "runtime", command: "node --version && npm --version", timeoutSeconds: 10 },
+					{ name: "runtime", command: recipe.runtime === "python" ? "python3 --version" : "node --version && npm --version", timeoutSeconds: 10 },
 					recipe.install,
 					...recipe.checks,
 					{

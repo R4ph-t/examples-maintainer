@@ -10,6 +10,7 @@ const Step = z.strictObject({
 /** Operator-owned recipes. Task inputs and repository content cannot override them. */
 export const MaintenanceRecipe = z
 	.strictObject({
+		runtime: z.enum(["node", "python"]).optional(),
 		install: Step,
 		checks: z.array(Step).max(12),
 		smoke: z.strictObject({

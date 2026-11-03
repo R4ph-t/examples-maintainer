@@ -47,6 +47,7 @@ const TASK_NAMES = [
 	"maintenance-sweep",
 	"dependency-review",
 	"dependency-sweep",
+	"dependency-publish",
 ];
 
 interface Call {

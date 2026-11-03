@@ -4,19 +4,20 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { validatePythonChange } from "./python.js";
 import { DependencyArtifact, type DependencyCandidate, DependencySnapshot } from "../../schemas/index.js";
 
 /** Validate the complete files, not a sandbox-provided diff or its claimed list of changes. */
 export async function buildArtifact(
 	sha: string,
-	manager: "npm" | "yarn1",
+	manager: "npm" | "yarn1" | "pip",
 	candidate: DependencyCandidate,
 	rawBefore: unknown,
 	rawAfter: unknown,
 ): Promise<DependencyArtifact> {
 	const before = DependencySnapshot.parse(rawBefore);
 	const after = DependencySnapshot.parse(rawAfter);
-	const paths = ["package.json", manager === "npm" ? "package-lock.json" : "yarn.lock"];
+	const paths = manager === "pip" ? ["requirements.txt"] : ["package.json", manager === "npm" ? "package-lock.json" : "yarn.lock"];
 	if (
 		!isDeepStrictEqual(
 			before.files.map((f) => f.path),
@@ -28,15 +29,18 @@ export async function buildArtifact(
 		)
 	)
 		throw new Error("Unexpected artifact paths");
-	const original = JSON.parse(before.files[0].content);
-	const expected = structuredClone(original);
-	if (!Object.hasOwn(expected[candidate.section] ?? {}, candidate.name) || expected[candidate.section][candidate.name] !== candidate.fromRange)
-		throw new Error("Manifest base mismatch");
-	expected[candidate.section][candidate.name] = candidate.toRange;
-	if (!isDeepStrictEqual(JSON.parse(after.files[0].content), expected)) throw new Error("Update changed unrelated manifest fields");
-	if (manager === "npm") {
-		const lock = JSON.parse(after.files[1].content);
-		if (![1, 2, 3].includes(lock.lockfileVersion)) throw new Error("Invalid npm lockfile");
+	if (manager === "pip") validatePythonChange(candidate, before, after);
+	else {
+		const original = JSON.parse(before.files[0].content);
+		const expected = structuredClone(original);
+		if (!Object.hasOwn(expected[candidate.section] ?? {}, candidate.name) || expected[candidate.section][candidate.name] !== candidate.fromRange)
+			throw new Error("Manifest base mismatch");
+		expected[candidate.section][candidate.name] = candidate.toRange;
+		if (!isDeepStrictEqual(JSON.parse(after.files[0].content), expected)) throw new Error("Update changed unrelated manifest fields");
+		if (manager === "npm") {
+			const lock = JSON.parse(after.files[1].content);
+			if (![1, 2, 3].includes(lock.lockfileVersion)) throw new Error("Invalid npm lockfile");
+		}
 	}
 	const files = before.files.map((f, i) => ({ path: f.path, before: f.content, after: after.files[i].content }));
 	if (files.every((f) => f.before === f.after)) throw new Error("Empty proposal");

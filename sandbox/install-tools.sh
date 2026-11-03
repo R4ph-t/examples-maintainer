@@ -12,6 +12,9 @@ have() { command -v "$1" >/dev/null 2>&1; }
 	exit 1
 }
 pkgs=""
+if [ "${1:-node}" = python ]; then
+	pkgs="python3 python3-venv"
+fi
 have git || pkgs="$pkgs git"
 have rg || pkgs="$pkgs ripgrep"
 have timeout || pkgs="$pkgs coreutils"

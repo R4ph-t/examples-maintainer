@@ -6,7 +6,7 @@ export interface RepoConfig {
 	/** Opt-in clean-install and application checks; commands are trusted deployment configuration. */
 	maintenance?: MaintenanceRecipe;
 	/** Opt-in direct dependency patch/minor proposals, tested against a clean baseline. */
-	dependencyUpdates?: { packageManager: "npm" | "yarn1" };
+	dependencyUpdates?: { packageManager: "npm" | "yarn1" | "pip"; publishDrafts?: boolean };
 	/** Installs dependencies in the sandbox. Runs after credentials are removed. */
 	install?: string;
 	/** Commands that must pass before a PR opens and that PR Reviewer runs. */
@@ -97,6 +97,42 @@ export default defineFactoryConfig({
 				smoke: { start: "node server.js", port: 3000, path: "/", expectedStatus: 200, bodyIncludes: "Hello, world!", timeoutSeconds: 30 },
 			},
 			egress: ["registry.npmjs.org"],
+		},
+		"render-examples/django": {
+			baseBranch: "main",
+			dependencyUpdates: { packageManager: "pip" },
+			maintenance: {
+				runtime: "python",
+				install: {
+					name: "install",
+					command:
+						"python3 -m venv .venv && .venv/bin/python -m pip install --disable-pip-version-check --no-input --only-binary=:all: -r requirements.txt",
+					timeoutSeconds: 240,
+				},
+				checks: [
+					{ name: "dependencies", command: ".venv/bin/python -m pip check", timeoutSeconds: 30 },
+					{
+						name: "framework",
+						command: "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py check",
+						timeoutSeconds: 30,
+					},
+					{
+						name: "migrations",
+						command: "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py migrate --noinput",
+						timeoutSeconds: 90,
+					},
+				],
+				smoke: {
+					start: "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/gunicorn mysite.wsgi:application --bind 127.0.0.1:3001",
+					port: 3001,
+					path: "/",
+					expectedStatus: 200,
+					bodyIncludes: "Hello World!",
+					timeoutSeconds: 30,
+				},
+			},
+			verify: [".venv/bin/python -m pip check", "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py check"],
+			egress: ["pypi.org", "files.pythonhosted.org"],
 		},
 	},
 	labels: {

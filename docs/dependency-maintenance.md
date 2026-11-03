@@ -1,17 +1,16 @@
 # Tested dependency proposals
 
-The dependency loop is enabled for the three configured Express JavaScript,
-Express TypeScript, and Hapi examples. It produces review artifacts and does not
-write to GitHub. A GitHub PAT is not required in public mode.
+The dependency loop is enabled for the configured Express JavaScript,
+Express TypeScript, Hapi, and Django examples. It produces review artifacts. GitHub publication is disabled by default. A GitHub PAT is not required in public mode.
 
 ## What each run does
 
 1. Pin the configured branch to an exact commit and run the existing install,
    build/syntax, and HTTP smoke recipe in a fresh sandbox.
 2. Read installed direct dependency versions without importing package code.
-   Query the public npm registry for stable, non-deprecated releases. Select one
-   update, considering runtime dependencies first and package names in sorted
-   order. Preserve exact/caret/tilde range style.
+   Audit the installed baseline, then query the public npm/PyPI registry for stable, non-deprecated releases. Select one
+   update, prioritizing eligible direct fixes identified by the audit, then
+   runtime dependencies and package names in sorted order. Preserve exact/caret/tilde range style.
 3. In a second fresh sandbox at the same commit, change only that dependency's
    declaration and regenerate the existing lockfile with lifecycle scripts
    disabled. npm uses `--package-lock-only`; Yarn Classic uses pinned 1.22.22.
@@ -20,7 +19,8 @@ write to GitHub. A GitHub PAT is not required in public mode.
 5. In a third fresh sandbox at the same commit, apply those exact files and run
    the original frozen install and checks. Require the selected installed version,
    unchanged other direct versions, unchanged proposal files, matching runtime
-   and verifier identities, and confirmed sandbox termination.
+   and verifier identities, and confirmed sandbox termination. Repeat the audit and block newly introduced
+   high, critical, or unknown-severity findings. Unavailable scans cannot pass.
 
 Only a passing comparison becomes `ready_for_review`. A failed baseline blocks
 proposal generation. Failed candidates retain their patch and checks as rejected
@@ -32,11 +32,11 @@ sandboxes sequentially.
 
 ## Supported policy
 
-Opt in through `dependencyUpdates: { packageManager: "npm" | "yarn1" }` alongside
+Opt in through `dependencyUpdates: { packageManager: "npm" | "yarn1" | "pip" }` alongside
 a `maintenance` recipe in `factory.config.ts`. Existing recipes must perform a
 frozen install (`npm ci` or Yarn `--frozen-lockfile`).
 
-This phase supports a root `package.json` and exactly one `package-lock.json` or
+The Node adapter supports a root `package.json` and exactly one `package-lock.json` or
 Yarn Classic `yarn.lock`, with at most 40 direct runtime/development dependencies.
 It proposes patches and minors within the installed major; for 0.x it stays
 within the installed minor. It skips prereleases, deprecated releases, aliases,
@@ -45,15 +45,17 @@ Git/file/URL dependencies, and complex ranges. Unsupported ranges are listed in
 UTF-8, and files larger than 180 KB are rejected. A retained artifact is capped
 at 512 KB serialized, so oversized diffs fail explicitly.
 
-This is a version-update policy, not vulnerability remediation or a guarantee
-that every minor release is compatible. The recipes are the acceptance evidence.
-The pilot examples have no unit-test scripts; their results distinguish syntax,
+Security findings guide selection and are compared before/after. Audit results
+are known-advisory evidence, not a guarantee that every minor release is compatible. The recipes are the acceptance evidence.
+The pilot examples have no substantive unit tests; their results distinguish syntax,
 TypeScript build, and HTTP smoke checks.
 
 Only the first eligible candidate is tested per repo per daily run. Other
 candidates remain visible in the discovery result. Until a proposal is merged,
-subsequent days can propose the same update again. There is no persistent PR
-queue, cross-day deduplication, automatic repair, merge, or major-version migration.
+subsequent days can propose the same update again. Published proposals use immutable artifact branches and persistent PR markers
+for deduplication. There is no automatic repair, merge, or major-version migration.
+See [Python maintenance](python-maintenance.md) for exact requirements pins and
+[security audits](security-audits.md) for audit interpretation and limitations.
 
 ## Run and retrieve results
 
@@ -86,8 +88,16 @@ existing run before starting another.
 
 ## GitHub publishing
 
-Publication is deliberately disabled in this loop, including when a PAT or App
-credential is present. Baseline/candidate checks never publish a misleading
-status against the unchanged base commit. Future publishing must revalidate the
-base branch and exact tested artifact, create a content-addressed branch, and
-open or reuse a draft PR. PAT approval is needed for that publishing phase.
+Publication is disabled by default, including in public mode. Once a dedicated
+GitHub credential is approved, both `MAINTENANCE_PUBLISH_DRAFTS=true` and the
+repository's `dependencyUpdates.publishDrafts: true` are required. The sweep can
+then publish ready proposals through a separate `dependency-publish` task.
+An operator can also invoke `npm run maintenance:publish -- --repo OWNER/REPO
+--review-run trn-...`.
+
+The publisher loads evidence from this Workflow, checks 24-hour freshness,
+revalidates the exact tested artifact and current base, and opens or reuses a
+draft PR. It never merges or overwrites a human-modified branch or PR. Baseline
+and candidate checks do not publish a misleading status against the unchanged
+base commit. See [draft publication](dependency-publishing.md) for the safety
+contract and unavoidable race when the base advances during PR creation.

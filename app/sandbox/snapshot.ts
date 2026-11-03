@@ -159,7 +159,7 @@ export async function prepareFreshCheckout(
 			` && cp -R ${STAGING_DIR}/runner/. ${APP_DIR}/runner/`,
 		boot,
 	);
-	await client.check(id, `bash ${APP_DIR}/install-tools.sh`, prepare);
+	await client.check(id, `bash ${APP_DIR}/install-tools.sh ${repo.config.maintenance?.runtime === "python" ? "python" : "node"}`, prepare);
 	const node = await nodePath(client, id);
 	await client.check(id, createRunnerUserCommand(), boot);
 	await client.upload(id, `${APP_DIR}/env`, envFileContent(node));

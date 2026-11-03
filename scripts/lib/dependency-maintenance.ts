@@ -11,7 +11,7 @@ export async function planDependencyMaintenance(config: FactoryConfig, window: s
 	const policy = createHash("sha256")
 		.update(
 			JSON.stringify({
-				version: 1,
+				version: 2,
 				repos: Object.entries(enabled.repos)
 					.sort(([a], [b]) => a.localeCompare(b))
 					.map(([name, repo]) => [name, repo.dependencyUpdates]),
@@ -31,7 +31,14 @@ export async function waitForDependencyMaintenance(
 		if (["failed", "canceled"].includes(run.status)) throw new Error(`Dependency sweep ${run.status}`);
 		if (["completed", "succeeded"].includes(run.status)) {
 			const [report] = z.tuple([DependencySweepResult]).parse(run.results);
-			return { ...report, healthy: report.results.every((r) => ["ready_for_review", "no_eligible_update"].includes(r.status)) };
+			return {
+				...report,
+				healthy: report.results.every(
+					(r) =>
+						["ready_for_review", "no_eligible_update"].includes(r.status) &&
+						(!r.publication || ["published", "reused", "suppressed", "disabled"].includes(r.publication.status)),
+				),
+			};
 		}
 		await (opts.sleep ?? sleep)(30_000);
 	}

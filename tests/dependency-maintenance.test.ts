@@ -86,6 +86,7 @@ function world() {
 	});
 	const deps: DependencyReviewDeps = {
 		verify,
+		audit: vi.fn(async () => ({ tool: "npm" as const, status: "completed" as const, findings: [], scannedAt: new Date().toISOString() })),
 		open: vi.fn(async () => sandbox),
 		prepare: vi.fn(async () => {}),
 		discover: vi.fn(async () => ({ candidates: [candidate], skipped: [] })),
@@ -180,6 +181,53 @@ describe("dependency review", () => {
 		expect(result).toMatchObject({ status: "infrastructure_error", reason: "lookup_incomplete", lookupHttpStatus: 403 });
 		expect(JSON.stringify(result)).not.toContain("secret response");
 		expect(w.deps.open).not.toHaveBeenCalled();
+	});
+	it("stops before generating a patch when baseline auditing is unavailable", async () => {
+		const w = world();
+		w.deps.audit = async () => ({
+			tool: "npm",
+			status: "unavailable",
+			reason: "execution_failed",
+			findings: [],
+			scannedAt: new Date().toISOString(),
+		});
+		const result = await runDependencyReview(input, "run-1", w.deps);
+		expect(result).toMatchObject({ status: "infrastructure_error", reason: "audit_unavailable" });
+		expect(w.deps.open).not.toHaveBeenCalled();
+	});
+	it("retains a passing candidate patch but blocks a new high severity advisory", async () => {
+		const w = world();
+		let calls = 0;
+		w.deps.audit = async () => ({
+			tool: "npm",
+			status: "completed",
+			scannedAt: new Date().toISOString(),
+			findings:
+				calls++ === 0
+					? []
+					: [{ id: "GHSA-abcd-efgh-ijkl", package: "express", version: candidate.toVersion, severity: "high", direct: true, fixVersions: [] }],
+		});
+		const result = await runDependencyReview(input, "run-1", w.deps);
+		expect(result).toMatchObject({
+			status: "security_blocked",
+			reason: "security_regression",
+			verification: { status: "passed", cleanup: "terminated" },
+			audit: { comparison: { status: "blocked" } },
+		});
+		expect(result.artifact).toBeDefined();
+	});
+	it("never promotes a candidate whose final audit is unavailable", async () => {
+		const w = world();
+		let calls = 0;
+		w.deps.audit = async () =>
+			calls++ === 0
+				? { tool: "npm", status: "completed", scannedAt: new Date().toISOString(), findings: [] }
+				: { tool: "npm", status: "unavailable", reason: "invalid_output", scannedAt: new Date().toISOString(), findings: [] };
+		expect(await runDependencyReview(input, "run-1", w.deps)).toMatchObject({
+			status: "infrastructure_error",
+			reason: "audit_unavailable",
+			audit: { comparison: { status: "unavailable" } },
+		});
 	});
 	it("stops before proposing updates when the baseline fails", async () => {
 		const w = world();

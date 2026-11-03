@@ -439,3 +439,20 @@ selects `packageManager: "npm" | "yarn1"`. A maintenance recipe is required. The
 loop tests one stable patch/minor update per run, preserving the package manager
 and frozen-install recipe. See [dependency maintenance](dependency-maintenance.md)
 for supported manifests, artifact limits, scheduling, and result semantics.
+
+
+### Dependency maintenance extensions
+
+`dependencyUpdates.packageManager` supports `npm`, `yarn1`, and `pip`.
+Python recipes set `maintenance.runtime: "python"` and use the supported exact-pin
+install command documented in [Python maintenance](python-maintenance.md).
+Node recipes retain their frozen npm/Yarn install commands. Auditing is required
+for ready proposals; see [security audits](security-audits.md).
+
+Draft PR publication is separately disabled by default. Enabling it requires
+`MAINTENANCE_PUBLISH_DRAFTS=true` in the maintenance service plus
+`dependencyUpdates.publishDrafts: true` for the selected repository. The dedicated
+GitHub PAT belongs in the optional `examples-maintainer-github` group, never in a
+sandbox or the public-mode cron. The publication task accepts a review run ID,
+loads its evidence from this Workflow, and rejects stale or incomplete results.
+See [draft publication](dependency-publishing.md).
