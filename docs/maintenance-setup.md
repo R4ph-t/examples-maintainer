@@ -104,8 +104,10 @@ manual sweeps can still overlap. The cron waits for completion, with a ten-hour
 caller limit, and Render prevents overlapping executions of the same cron.
 A canceled cron does not cancel its Workflow; inspect the existing run before
 starting another. Daily dispatch uses an idempotency key incorporating the UTC
-date, revisions, and recipes; Render retains that key for 24 hours per Workflow
-version. This is not a durable cross-version lock.
+date, revisions, and recipes. A repeated dispatch can return an earlier run,
+including after a Workflow release. For an explicit fresh acceptance test, submit
+the planned input with a distinct idempotency key and verify the resulting run's
+task version and start time. Daily idempotency is not a durable history or lock.
 
 Public GitHub API rate limits apply without authentication. The pilot makes only
 a small number of requests daily. Before expanding toward the 25-repository batch
