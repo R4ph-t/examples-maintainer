@@ -47,6 +47,8 @@ The PyPI audit service does not provide severity in this report format. Findings
 therefore retain `unknown` severity and explicit fixed versions; no severity is
 inferred from advisory names. Shared policy blocks newly introduced unknown
 findings while preserving existing findings in the before/after evidence.
+Repeated advisory IDs are deduplicated by package and ID; when duplicate records
+disagree on fixed versions, only their intersection guides update selection.
 Audit output is bounded and captured outside the runner-owned checkout.
 
 ## Django pilot

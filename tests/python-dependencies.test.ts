@@ -197,6 +197,42 @@ describe("Python audit evidence", () => {
 			findings: [{ id: "PYSEC-2024-1", package: "django", severity: "unknown", direct: true, fixVersions: ["5.0.2"] }],
 		});
 	});
+	it("deduplicates repeated live advisory IDs and conservatively intersects conflicting fix versions", () => {
+		const duplicated = {
+			dependencies: [
+				{
+					name: "django",
+					version: "5.0.1",
+					vulns: [
+						{ id: "PYSEC-2026-3717", fix_versions: ["5.2.17", "6.0.8", "6.1.1"] },
+						{ id: "PYSEC-2026-3717", fix_versions: ["5.2.17", "6.0.8"] },
+						{ id: "PYSEC-2026-3717", fix_versions: ["6.0.8", "5.2.17"] },
+						{ id: "PYSEC-2024-28", fix_versions: ["5.0.2"] },
+						{ id: "PYSEC-2024-28", fix_versions: ["5.0.2"] },
+					],
+				},
+			],
+			fixes: [],
+		};
+		const report = normalizePythonAudit(JSON.stringify(duplicated), 1, { django: "5.0.1" });
+		expect(report.status).toBe("completed");
+		expect(report.findings).toHaveLength(2);
+		expect(report.findings.find((f) => f.id === "PYSEC-2026-3717")?.fixVersions).toEqual(["5.2.17", "6.0.8"]);
+		const conflict = {
+			dependencies: [
+				{
+					name: "pip",
+					version: "23.0.1",
+					vulns: [
+						{ id: "PYSEC-2026-3721", fix_versions: ["26.2"] },
+						{ id: "PYSEC-2026-3721", fix_versions: ["26.2.0"] },
+					],
+				},
+			],
+			fixes: [],
+		};
+		expect(normalizePythonAudit(JSON.stringify(conflict), 1, { pip: "23.0.1" }).findings[0].fixVersions).toEqual([]);
+	});
 	it("never treats skipped, missing, duplicate, truncated, version-mismatched, or exit-inconsistent data as clean", () => {
 		const invalid = [
 			"{}",

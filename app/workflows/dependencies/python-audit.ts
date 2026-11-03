@@ -55,22 +55,28 @@ export function normalizePythonAudit(
 			Object.entries(expected).some(([name, version]) => audited[name] !== version)
 		)
 			throw new Error("Incomplete audit inventory");
-		const findings: AuditFinding[] = [];
+		const byAdvisory = new Map<string, AuditFinding>();
 		for (const dependency of report.dependencies) {
-			for (const vuln of dependency.vulns)
-				findings.push(
-					AuditFinding.parse({
+			for (const vuln of dependency.vulns) {
+				const key = `${dependency.name}:${vuln.id}`;
+				const fixes = [...new Set(vuln.fix_versions)].sort();
+				const existing = byAdvisory.get(key);
+				// PyPI can repeat an advisory after alias resolution. Retain the finding once;
+				// only fixes agreed by all duplicate records are eligible to guide updates.
+				if (existing) existing.fixVersions = existing.fixVersions.filter((version) => fixes.includes(version));
+				else
+					byAdvisory.set(key, {
 						id: vuln.id,
 						package: dependency.name,
 						version: dependency.version,
 						severity: "unknown",
 						direct: Object.hasOwn(direct, dependency.name),
-						fixVersions: [...new Set(vuln.fix_versions)].sort(),
-					}),
-				);
+						fixVersions: fixes,
+					});
+			}
 		}
+		const findings = [...byAdvisory.values()].sort((a, b) => `${a.package}:${a.id}`.localeCompare(`${b.package}:${b.id}`));
 		if (![0, 1].includes(exitCode) || (exitCode === 0) !== (findings.length === 0)) throw new Error("Audit exit mismatch");
-		if (new Set(findings.map((f) => `${f.package}:${f.id}`)).size !== findings.length) throw new Error("Duplicate audit findings");
 		return AuditReport.parse({ tool: "pip-audit", status: "completed", findings, scannedAt: new Date().toISOString() });
 	} catch {
 		return unavailableAudit("pip-audit", "invalid_output");
