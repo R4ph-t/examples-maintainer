@@ -439,6 +439,9 @@ describe("fresh maintenance sandboxes", () => {
 		const clone = fake.commands().find((c) => c.includes(" clone "));
 		expect(clone).toContain(BASE_SHA);
 		expect(clone).not.toContain("git-credential-staged");
+		for (const boundary of ["env -i", 'HOME="$taskGitHome"', "GIT_CONFIG_GLOBAL=/dev/null", "NETRC=/dev/null", "http.followRedirects=false", "credential.helper="]) {
+			expect(clone).toContain(boundary);
+		}
 		expect(fake.commands().some((c) => c.includes("scrub-credentials.sh"))).toBe(true);
 	});
 	it("starts without a snapshot, pins the checkout, strips credentials and closes even when preparation fails", async () => {

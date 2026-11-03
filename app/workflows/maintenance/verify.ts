@@ -36,7 +36,8 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 		throw new Error("App maintenance requires an installationId; alternatively configure MAINTENANCE_GITHUB_TOKEN");
 	const repo = requireRepo(input.repo, input.installationId ?? 0);
 	const recipe = MaintenanceRecipe.parse(repo.config.maintenance);
-	if (publicCheckout) await assertPublicMaintenanceRepo(repo.fullName);
+	// Public mode proves visibility through a credential-free, redirect-disabled Git checkout.
+	if (mode === "pat") await assertPublicMaintenanceRepo(repo.fullName);
 	const script = await readFile(fileURLToPath(new URL("../../../sandbox/maintenance-smoke.mjs", import.meta.url)));
 	const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 	const result: MaintenanceResult = {

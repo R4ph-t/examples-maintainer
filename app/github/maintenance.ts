@@ -1,3 +1,7 @@
+import { execFile } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
 import type { RepoContext } from "../config/index.js";
 import { appJwt } from "./auth.js";
@@ -39,12 +43,18 @@ export async function assertPublicMaintenanceRepo(fullName: string, opts: GitHub
 	}
 }
 
-/** PAT mode resolves a public revision directly; App mode retains installation-scoped access. */
+export interface MaintenanceRevisionOptions extends GitHubHttpOptions {
+	/** Test seam for the credential-free Git subprocess. */
+	git?: (args: string[], options: { cwd: string; env: NodeJS.ProcessEnv; timeout: number; maxBuffer: number }) => Promise<string>;
+}
+
+/** Public mode uses anonymous Git; PAT/App modes retain their existing API authorization boundary. */
 export async function maintenanceRevision(
 	fullName: string,
 	branch: string,
-	opts: GitHubHttpOptions = {},
+	opts: MaintenanceRevisionOptions = {},
 ): Promise<{ installationId?: number; sha: string }> {
+	if (maintenanceMode() === "public") return { sha: await publicGitRevision(fullName, branch, opts) };
 	const base = repoPath(fullName);
 	let installationId: number | undefined;
 	let http: GitHubHttp;
@@ -61,6 +71,88 @@ export async function maintenanceRevision(
 		.object({ sha: z.string().regex(/^[0-9a-f]{40}$/) })
 		.parse(await http.json("GET", `${base}/commits/${encodeURIComponent(branch)}`));
 	return installationId === undefined ? { sha } : { installationId, sha };
+}
+
+/** Exact public branch resolution, independent of unauthenticated REST metadata quota. */
+async function publicGitRevision(fullName: string, branch: string, opts: MaintenanceRevisionOptions): Promise<string> {
+	if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9_.-]{1,100}$/.test(fullName) || [".", ".."].includes(fullName.split("/")[1]))
+		throw new Error("Unsupported public repository name");
+	if (
+		!/^[A-Za-z0-9_][A-Za-z0-9_./-]{0,199}$/.test(branch) ||
+		branch.includes("..") ||
+		branch.includes("//") ||
+		branch.endsWith(".") ||
+		branch.split("/").some((part) => !part || part.startsWith(".") || part.endsWith(".lock"))
+	)
+		throw new Error("Unsupported public branch name");
+	const ref = `refs/heads/${branch}`;
+	const args = [
+		"-c",
+		"credential.helper=",
+		"-c",
+		"credential.interactive=false",
+		"-c",
+		"core.askPass=/bin/false",
+		"-c",
+		"http.extraHeader=",
+		"-c",
+		"http.followRedirects=false",
+		"-c",
+		"protocol.allow=never",
+		"-c",
+		"protocol.https.allow=always",
+		"-c",
+		"http.lowSpeedLimit=1",
+		"-c",
+		"http.lowSpeedTime=15",
+		"ls-remote",
+		"--refs",
+		"--exit-code",
+		"--quiet",
+		"--",
+		`https://github.com/${fullName}.git`,
+		ref,
+	];
+	const taskGitHome = await mkdtemp(join(tmpdir(), "maintenance-public-git-"));
+	try {
+		// An unset HOME can make libcurl consult the account's .netrc via getpwuid. Use an empty private home instead.
+		// No user/system/local Git config, helpers, token variables, SSH agents, or remote rewrites enter this process.
+		const env = {
+			PATH: "/usr/bin:/bin",
+			HOME: taskGitHome,
+			XDG_CONFIG_HOME: taskGitHome,
+			GIT_CONFIG_NOSYSTEM: "1",
+			GIT_CONFIG_GLOBAL: "/dev/null",
+			GIT_CONFIG_SYSTEM: "/dev/null",
+			GIT_TERMINAL_PROMPT: "0",
+			GIT_ASKPASS: "/bin/false",
+			SSH_ASKPASS: "/bin/false",
+			NETRC: "/dev/null",
+		};
+		const options = { cwd: taskGitHome, env, timeout: Math.max(1, Math.min(opts.timeoutMs ?? 30_000, 30_000)), maxBuffer: 4096 };
+		const run =
+			opts.git ??
+			((argv, execution) =>
+				new Promise<string>((resolve, reject) => {
+					execFile("/usr/bin/git", argv, { ...execution, encoding: "utf8", killSignal: "SIGKILL" }, (error, stdout) => {
+						if (error) reject(new Error("Anonymous Git revision lookup failed"));
+						else resolve(stdout);
+					});
+				}));
+		let output: string;
+		try {
+			output = await run(args, options);
+		} catch {
+			throw new Error("Anonymous Git revision lookup failed");
+		}
+		if (Buffer.byteLength(output) > 4096) throw new Error("Anonymous Git revision response was invalid");
+		const lines = (output.endsWith("\n") ? output.slice(0, -1) : output).split("\n");
+		const match = /^([0-9a-f]{40})\t([^\r\n]+)$/.exec(lines[0] ?? "");
+		if (lines.length !== 1 || !match || match[2] !== ref) throw new Error("Anonymous Git revision response was invalid");
+		return match[1];
+	} finally {
+		await rm(taskGitHome, { recursive: true, force: true });
+	}
 }
 
 /** Controller-only publication. PATs use commit statuses; GitHub Apps retain detailed Check Runs. */

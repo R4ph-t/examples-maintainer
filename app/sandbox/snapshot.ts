@@ -47,7 +47,7 @@ const SANDBOX_GITCONFIG = "[core]\n\tfsmonitor = false\n[advice]\n\tdetachedHead
 const GITHUB_TOKEN_USER = "x-access-token";
 
 export interface SnapshotDeps {
-	/** Public maintenance checkouts need no credential in the guest. Caller must verify repository visibility. */
+	/** Public maintenance checkouts use anonymous, redirect-disabled Git; PAT callers also verify visibility via metadata. */
 	publicCheckout?: boolean;
 	/** A read-only token for the repository. Defaults to a GitHub App installation token with `contents: read`. */
 	readToken?: (repo: RepoContext) => Promise<string>;
@@ -226,7 +226,38 @@ function envFileContent(nodePath: string): string {
 function cloneCommand(repo: RepoContext, sha: string, publicCheckout = false): string {
 	const url = `https://github.com/${repo.owner}/${repo.name}.git`;
 	const branch = repo.config.baseBranch;
-	const auth = (publicCheckout ? ["-c", "credential.helper="] : credentialHelperArgs(STAGING_CREDS)).map(shq).join(" ");
+	if (publicCheckout) {
+		const git = `env -i PATH=/usr/bin:/bin HOME="$taskGitHome" XDG_CONFIG_HOME="$taskGitHome" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/false SSH_ASKPASS=/bin/false NETRC=/dev/null /usr/bin/git`;
+		const flags = [
+			"-c",
+			"credential.helper=",
+			"-c",
+			"credential.interactive=false",
+			"-c",
+			"core.askPass=/bin/false",
+			"-c",
+			"http.extraHeader=",
+			"-c",
+			"http.followRedirects=false",
+			"-c",
+			"protocol.allow=never",
+			"-c",
+			"protocol.https.allow=always",
+			"-c",
+			"init.templateDir=",
+			"-c",
+			"core.hooksPath=/dev/null",
+		]
+			.map(shq)
+			.join(" ");
+		// Successful credential-free clone proves public access. Redirects would silently change the configured target.
+		return `(taskGitHome=$(mktemp -d) && trap 'rm -rf "$taskGitHome"' EXIT && ${[
+			`${git} ${flags} clone --quiet --single-branch --branch ${shq(branch)} --no-tags -- ${shq(url)} ${REPO_DIR}`,
+			`${git} ${flags} -C ${REPO_DIR} checkout --quiet -B ${shq(branch)} ${sha}`,
+			`head=$(${git} ${flags} -C ${REPO_DIR} rev-parse HEAD) && [ "$head" = ${sha} ]`,
+		].join(" && ")})`;
+	}
+	const auth = credentialHelperArgs(STAGING_CREDS).map(shq).join(" ");
 	return [
 		`GIT_TERMINAL_PROMPT=0 git ${auth} clone --quiet --single-branch --branch ${shq(branch)} --no-tags -- ${shq(url)} ${REPO_DIR}`,
 		`git -C ${REPO_DIR} checkout --quiet -B ${shq(branch)} ${sha}`,

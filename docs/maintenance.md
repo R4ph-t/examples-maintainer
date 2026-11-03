@@ -13,7 +13,21 @@ checks. It also does not exercise browser assets or prove a Render deployment.
 Use [the standalone setup guide](maintenance-setup.md) for the first phase.
 Set `MAINTENANCE_MODE=public` to explicitly disable GitHub authentication and
 publication, even when local App or PAT credentials exist. Public repositories
-are validated before anonymous cloning. Results use `reporting: skipped`.
+are resolved through credential-free `git ls-remote` against the exact configured
+`refs/heads/<branch>` at `github.com`. The subprocess has a private empty home,
+no inherited credentials or Git configuration, disabled helpers/prompts and
+redirects, bounded output, and a 30-second deadline. The sandbox clone also uses
+an isolated anonymous Git environment and rejects redirects; successful cloning
+proves public accessibility without a redundant REST metadata request. Missing,
+private, renamed, malformed, or unreachable targets fail closed. PAT mode retains
+its authenticated metadata/private-repository check. Results use `reporting: skipped`.
+
+This removes the unauthenticated REST metadata dependency from public execution.
+A live public metadata request returned HTTP 403; that status alone does not
+establish its exact cause. Git transport errors remain explicit infrastructure
+failures, never successful checks. [Git ls-remote](https://git-scm.com/docs/git-ls-remote)
+and [Git HTTP/configuration](https://git-scm.com/docs/git-config) document these
+transport and configuration controls.
 
 The configured pilot now includes Express JavaScript, Express TypeScript, and
 Hapi. `npm run maintenance:inventory` distinguishes configured repos from those

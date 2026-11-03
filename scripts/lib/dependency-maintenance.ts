@@ -11,7 +11,7 @@ export async function planDependencyMaintenance(config: FactoryConfig, window: s
 	const policy = createHash("sha256")
 		.update(
 			JSON.stringify({
-				version: 2,
+				version: 3,
 				repos: Object.entries(enabled.repos)
 					.sort(([a], [b]) => a.localeCompare(b))
 					.map(([name, repo]) => [name, repo.dependencyUpdates]),
