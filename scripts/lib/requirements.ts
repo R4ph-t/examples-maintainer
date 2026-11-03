@@ -99,6 +99,11 @@ export const ENV_GROUPS: readonly EnvGroupSpec[] = [
 export const MAINTENANCE_ENV_GROUPS: readonly EnvGroupSpec[] = [
 	{ name: "examples-maintainer", services: ["maintenance"], keys: SERVICE_ENV.maintenance },
 ];
+/** Setup manages configuration only. The dedicated scoped runtime key is installed separately in the Dashboard. */
+export const MAINTENANCE_SETUP_GROUPS: readonly EnvGroupSpec[] = MAINTENANCE_ENV_GROUPS.map((group) => ({
+	...group,
+	keys: group.keys.filter((key) => key !== "RENDER_API_KEY"),
+}));
 /** Optional future write mode. Never link this group to public-mode services. */
 export const MAINTENANCE_PAT_ENV_GROUP: EnvGroupSpec = {
 	name: "examples-maintainer-github",

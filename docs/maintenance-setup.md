@@ -20,18 +20,39 @@ Discovery does not automatically execute repositories or infer commands.
 
 ## Prepare and deploy
 
-Use Node 24, run `npm ci`, then `npm run check`. Set `RENDER_API_KEY` in the
-ignored `.env` file. Configure the intended workspace with:
+Use Node 24, run `npm ci`, then `npm run check`. For setup, authenticate with a
+management `RENDER_API_KEY` that can access the intended workspace and manage its
+environment groups. Keep it in the process environment or ignored `.env` file.
+Configure the intended workspace with:
 
 ```bash
 npm run setup:maintenance -- --workspace tea-YOUR_WORKSPACE
 ```
 
 This reads the configured public revisions, checks Render workspace access,
-and creates/updates the `examples-maintainer` environment group with exactly
-`RENDER_API_KEY`, `RENDER_WORKSPACE_ID`, and `MAINTENANCE_MODE=public`.
-It also saves the workspace and mode to local `.env`. No GitHub credential is
-copied. This setup is separate from the inherited full factory's App runbook.
+and creates/updates only `RENDER_WORKSPACE_ID` and `MAINTENANCE_MODE=public` in
+the `examples-maintainer` environment group. It saves those values to local
+`.env`. The management key is never copied to the group, and an existing runtime
+key is left untouched. This setup is separate from the inherited full factory's
+App runbook.
+
+In Render Account settings > API Keys, create a dedicated key named
+`examples-maintainer`, restricted to the maintenance workspace. For the current
+shared runtime key, select these permissions:
+
+| Permission | Access |
+| --- | --- |
+| Workflows | Read |
+| Run workflow tasks | Run |
+| Sandbox lifecycle and snapshots | Read & write |
+| Sandbox execution and file transfer | Execute |
+
+Leave other permissions off, including workflow secrets. Set the key as
+`RENDER_API_KEY` in the `examples-maintainer` environment group through the
+Dashboard before deployment. It does not need environment-group or deployment
+permissions. Permission labels can change; check the current Dashboard catalog.
+For manual runtime checks, use this scoped key rather than the management key.
+Never paste either key into logs, chat, or source control.
 
 Publish the tested branch before deployment. `render.maintenance.yaml` describes:
 

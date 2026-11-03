@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { Reporter } from "../scripts/lib/output.js";
-import { ENV_GROUPS, SERVICE_ENV } from "../scripts/lib/requirements.js";
+import { ENV_GROUPS, MAINTENANCE_SETUP_GROUPS, SERVICE_ENV } from "../scripts/lib/requirements.js";
 import { setupRender } from "../scripts/lib/setup-render.js";
 
 const WORKSPACE = "tea-abc123";
@@ -78,6 +78,32 @@ async function run(world: ReturnType<typeof renderWorld>, env: Record<string, st
 const writes = (calls: Call[]) => calls.filter((c) => c.method !== "GET");
 
 describe("setup:render", () => {
+	it.each([false, true])("maintenance setup never persists the management key or replaces a scoped runtime key (existing: %s)", async (existing) => {
+		const scoped = "rnd_dedicatedScopedKey";
+		const world = renderWorld({
+			groups: existing
+				? [
+						{
+							id: "evg-maintenance",
+							name: "examples-maintainer",
+							ownerId: WORKSPACE,
+							envVars: [{ key: "RENDER_API_KEY", value: scoped }],
+						},
+					]
+				: [],
+		});
+		const lines: string[] = [];
+		const code = await setupRender(
+			{ env: { ...ENV, MAINTENANCE_MODE: "public" }, fetch: world.fetch, groups: MAINTENANCE_SETUP_GROUPS },
+			new Reporter((line) => lines.push(line)),
+		);
+		expect(code).toBe(0);
+		const values = Object.fromEntries(world.groups[0]?.envVars.map((v) => [v.key, v.value]) ?? []);
+		expect(values).toEqual({ RENDER_WORKSPACE_ID: WORKSPACE, MAINTENANCE_MODE: "public", ...(existing ? { RENDER_API_KEY: scoped } : {}) });
+		expect(JSON.stringify(writes(world.calls).map((c) => c.body))).not.toContain(SECRETS.RENDER_API_KEY);
+		expect(lines.join("\n")).not.toContain(scoped);
+		expect(lines.join("\n")).not.toContain(SECRETS.RENDER_API_KEY);
+	});
 	it("creates each group with exactly its keys, and keeps App and model credentials off the gateway", async () => {
 		const world = renderWorld();
 		const { code, output } = await run(world);
@@ -138,7 +164,12 @@ describe("setup:render", () => {
 
 	it("refuses to pick between two groups with the same name", async () => {
 		const duplicate = { name: "software-factory-gateway", ownerId: WORKSPACE, envVars: [] };
-		const world = renderWorld({ groups: [{ ...duplicate, id: "evg-1" }, { ...duplicate, id: "evg-2" }] });
+		const world = renderWorld({
+			groups: [
+				{ ...duplicate, id: "evg-1" },
+				{ ...duplicate, id: "evg-2" },
+			],
+		});
 		const { code, output } = await run(world);
 		expect(code).toBe(1);
 		expect(output).toContain("2 env groups are named software-factory-gateway");

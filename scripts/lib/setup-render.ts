@@ -59,6 +59,7 @@ class RenderApi {
 export async function setupRender(opts: SetupRenderOptions, out: Reporter): Promise<number> {
 	const { env } = opts;
 	const groups = opts.groups ?? ENV_GROUPS;
+	out.addSecrets(env.RENDER_API_KEY);
 	for (const group of groups) out.addSecrets(...group.keys.filter((key) => !NOT_SECRET.has(key)).map((key) => env[key]));
 
 	out.heading("Values from .env");

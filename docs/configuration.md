@@ -404,9 +404,10 @@ extension uses existing credentials and introduces no new environment variables.
 
 `MAINTENANCE_GITHUB_TOKEN` selects PAT authentication for the maintenance tasks
 and dispatcher. `npm run start:maintenance` registers only these tasks. Its
-required values are listed in `SERVICE_ENV.maintenance` and
+base runtime values are listed in `SERVICE_ENV.maintenance` and
 `MAINTENANCE_ENV_GROUPS`: `RENDER_API_KEY`, `RENDER_WORKSPACE_ID`, and
-`MAINTENANCE_GITHUB_TOKEN`. Keep the group separate from the gateway.
+`MAINTENANCE_MODE`. PAT mode additionally needs `MAINTENANCE_GITHUB_TOKEN`
+from the separate `MAINTENANCE_PAT_ENV_GROUP`. Keep these groups separate from the gateway.
 
 This mode supports public repositories, clones anonymously, and publishes commit
 statuses. The controller keeps the PAT; no GitHub credential enters the guest.
@@ -415,6 +416,11 @@ App authentication and model-key requirements remain unchanged. See
 [maintenance setup](maintenance.md#pat-authentication-for-the-scheduled-maintainer).
 
 ## Public maintenance mode
+
+`setup:maintenance` manages only workspace and mode configuration through
+`MAINTENANCE_SETUP_GROUPS`. It never copies the local management key or overwrites
+the runtime key. Install a dedicated workspace-scoped `RENDER_API_KEY` directly
+in the maintenance environment group. See [runtime permissions](maintenance-setup.md#prepare-and-deploy).
 
 `MAINTENANCE_MODE` explicitly selects `public`, `pat`, or `app`. Public mode
 ignores all GitHub credentials, uses anonymous reads and clones, and skips
