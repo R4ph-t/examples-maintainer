@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { requireRepo, type RepoContext } from "../../config/index.js";
-import { maintenanceMode } from "../../github/index.js";
+import { GitHubError, maintenanceMode } from "../../github/index.js";
 import { openFreshSandbox, prepareFreshCheckout, type Sandbox, SandboxClient, sandboxClient, withSandbox } from "../../sandbox/index.js";
 import {
 	DependencyReviewResult,
@@ -154,9 +154,12 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 			result.status = "infrastructure_error";
 			result.reason = "artifact_mismatch";
 		} else result.status = "ready_for_review";
-	} catch {
+	} catch (error) {
 		result.status = "infrastructure_error";
-		result.reason ??= "unconfirmed_execution";
+		if (error instanceof GitHubError) {
+			result.lookupHttpStatus = error.status;
+			result.reason = "lookup_incomplete";
+		} else result.reason ??= "unconfirmed_execution";
 	}
 	return finish(result);
 }

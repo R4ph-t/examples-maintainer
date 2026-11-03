@@ -69,6 +69,7 @@ export const DependencyReviewResult = z
 		reason: z
 			.enum(["baseline_unhealthy", "candidate_unhealthy", "generation_rejected", "artifact_mismatch", "lookup_incomplete", "unconfirmed_execution"])
 			.optional(),
+		lookupHttpStatus: z.number().int().min(400).max(599).optional(),
 		completedAt: z.iso.datetime(),
 	})
 	.superRefine((r, ctx) => {

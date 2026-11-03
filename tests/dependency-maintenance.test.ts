@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { GitHubError } from "../app/github/index.js";
 import { config } from "../app/config/index.js";
 import type { Sandbox } from "../app/sandbox/index.js";
 import { DependencyReviewResult, type DependencySnapshot, type MaintenanceResult, type DependencyCandidate } from "../app/schemas/index.js";
@@ -171,6 +172,14 @@ describe("dependency review", () => {
 		expect(result.generation?.cleanup).toBe("terminated");
 		expect(result.baseline?.sandboxId).not.toBe(result.verification?.sandboxId);
 		expect(w.close).toHaveBeenCalledOnce();
+	});
+	it("retains HTTP status for a preflight failure without exposing response contents", async () => {
+		const w = world();
+		w.verify.mockRejectedValue(new GitHubError(403, "secret response", "secret response"));
+		const result = await runDependencyReview(input, "run-1", w.deps);
+		expect(result).toMatchObject({ status: "infrastructure_error", reason: "lookup_incomplete", lookupHttpStatus: 403 });
+		expect(JSON.stringify(result)).not.toContain("secret response");
+		expect(w.deps.open).not.toHaveBeenCalled();
 	});
 	it("stops before proposing updates when the baseline fails", async () => {
 		const w = world();
