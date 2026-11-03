@@ -1,6 +1,6 @@
 import { task } from "@renderinc/sdk/workflows";
 import { TASKS } from "../../config/index.js";
-import { MaintenanceResult, MaintenanceSweepInput } from "../../schemas/index.js";
+import { MaintenanceResult, MaintenanceSweepInput, MaintenanceSweepResult } from "../../schemas/index.js";
 import { runRepositoryVerification } from "./verify.js";
 
 export const verifyRepository = task(
@@ -18,14 +18,28 @@ export const maintenanceSweep = task(
 	async (ctx, raw: unknown) => {
 		const input = MaintenanceSweepInput.parse(raw);
 		const results = [];
+		for (const failure of input.resolutionFailures ?? []) {
+			results.push({ ...failure, sha: null, status: "infrastructure_error", reporting: "skipped" });
+		}
 		for (const repo of input.repositories) {
 			try {
 				const result = MaintenanceResult.parse(await ctx.run(verifyRepository, repo));
-				results.push({ repo: repo.repo, sha: repo.sha, status: result.status, reporting: result.reporting, checkUrl: result.checkUrl });
+				if (result.repo !== repo.repo || result.sha !== repo.sha) throw new Error("child result does not match requested revision");
+				results.push({
+					repo: repo.repo,
+					sha: repo.sha,
+					status: result.status,
+					reporting: result.reporting,
+					checkUrl: result.checkUrl,
+					runId: result.runId,
+					sandboxId: result.sandboxId,
+					cleanup: result.cleanup,
+					stages: result.stages.map(({ name, status, exitCode, durationMs }) => ({ name, status, exitCode, durationMs })),
+				});
 			} catch {
-				results.push({ repo: repo.repo, sha: repo.sha, status: "infrastructure_error", reporting: "failed" });
+				results.push({ repo: repo.repo, sha: repo.sha, status: "infrastructure_error", reporting: "failed", reason: "child_run_failed" });
 			}
 		}
-		return { results };
+		return MaintenanceSweepResult.parse({ completedAt: new Date().toISOString(), results });
 	},
 );

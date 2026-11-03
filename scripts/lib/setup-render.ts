@@ -11,6 +11,7 @@ const NOT_SECRET = new Set(["RENDER_WORKSPACE_ID", "GITHUB_APP_ID"]);
 
 export interface SetupRenderOptions extends ScriptDeps {
 	renderApiUrl?: string;
+	groups?: readonly EnvGroupSpec[];
 }
 
 interface EnvGroup {
@@ -57,11 +58,12 @@ class RenderApi {
 
 export async function setupRender(opts: SetupRenderOptions, out: Reporter): Promise<number> {
 	const { env } = opts;
-	for (const group of ENV_GROUPS) out.addSecrets(...group.keys.filter((key) => !NOT_SECRET.has(key)).map((key) => env[key]));
+	const groups = opts.groups ?? ENV_GROUPS;
+	for (const group of groups) out.addSecrets(...group.keys.filter((key) => !NOT_SECRET.has(key)).map((key) => env[key]));
 
 	out.heading("Values from .env");
 	let missing = false;
-	for (const group of ENV_GROUPS) {
+	for (const group of groups) {
 		for (const key of group.keys) {
 			if (env[key]?.trim()) continue;
 			missing = true;
@@ -75,7 +77,7 @@ export async function setupRender(opts: SetupRenderOptions, out: Reporter): Prom
 	}
 	// Writing nothing until every value is present keeps a half-filled group from reaching a deploy.
 	if (missing || !workspace) return out.summary();
-	out.pass(`all ${ENV_GROUPS.reduce((n, group) => n + group.keys.length, 0)} values are set`);
+	out.pass(`all ${groups.reduce((n, group) => n + group.keys.length, 0)} values are set`);
 
 	const api = new RenderApi(env.RENDER_API_KEY?.trim() ?? "", opts);
 	out.heading(`Render workspace ${workspace}`);
@@ -94,7 +96,7 @@ export async function setupRender(opts: SetupRenderOptions, out: Reporter): Prom
 	}
 	out.pass(`RENDER_API_KEY can access ${owner.data?.name ?? workspace}`);
 
-	for (const group of ENV_GROUPS) {
+	for (const group of groups) {
 		try {
 			await syncGroup(api, group, workspace, env, out);
 		} catch (error) {

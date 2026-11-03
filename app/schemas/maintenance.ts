@@ -46,9 +46,18 @@ export const VerifyRepositoryInput = z.strictObject({
 export type VerifyRepositoryInput = z.infer<typeof VerifyRepositoryInput>;
 
 /** A batch is an operator request, not a repository-provided list or an issue/PR task. */
-export const MaintenanceSweepInput = z.strictObject({
-	repositories: z.array(VerifyRepositoryInput).min(1).max(25),
-});
+export const MaintenanceSweepInput = z
+	.strictObject({
+		repositories: z.array(VerifyRepositoryInput).max(25),
+		resolutionFailures: z
+			.array(z.strictObject({ repo: z.string().max(200), reason: z.literal("revision_unavailable") }))
+			.max(25)
+			.optional(),
+	})
+	.refine((input) => {
+		const count = input.repositories.length + (input.resolutionFailures?.length ?? 0);
+		return count > 0 && count <= 25;
+	}, "a sweep must contain between 1 and 25 repositories");
 
 const Hash = z.string().regex(/^[0-9a-f]{64}$/);
 export const MaintenanceResult = z.strictObject({
@@ -71,8 +80,34 @@ export const MaintenanceResult = z.strictObject({
 			}),
 		)
 		.max(16),
-	reporting: z.enum(["pending", "published", "failed"]),
+	reporting: z.enum(["pending", "published", "failed", "skipped"]),
 	checkUrl: z.string().url().optional(),
 });
 export type MaintenanceResult = z.infer<typeof MaintenanceResult>;
 export type MaintenanceStage = MaintenanceResult["stages"][number];
+
+export const MaintenanceSweepResult = z.strictObject({
+	completedAt: z.iso.datetime(),
+	results: z
+		.array(
+			z.strictObject({
+				repo: z.string().max(200),
+				sha: z
+					.string()
+					.regex(/^[0-9a-f]{40}$/)
+					.nullable(),
+				status: z.enum(["passed", "failed", "infrastructure_error"]),
+				reporting: z.enum(["pending", "published", "failed", "skipped"]),
+				checkUrl: z.url().optional(),
+				runId: z.string().max(200).optional(),
+				sandboxId: z.string().max(200).nullable().optional(),
+				cleanup: z.enum(["not_created", "terminated", "unconfirmed"]).optional(),
+				reason: z.enum(["revision_unavailable", "child_run_failed"]).optional(),
+				stages: z
+					.array(MaintenanceResult.shape.stages.element.omit({ output: true }))
+					.max(16)
+					.optional(),
+			}),
+		)
+		.max(25),
+});

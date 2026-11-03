@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { requireRepo, type RepoContext } from "../../config/index.js";
-import { assertPublicMaintenanceRepo, type GitHubClient, maintenanceReporter, maintenanceUsesPat } from "../../github/index.js";
+import { assertPublicMaintenanceRepo, type GitHubClient, maintenanceMode, maintenanceReporter } from "../../github/index.js";
 import {
 	APP_DIR,
 	openFreshSandbox,
@@ -25,7 +25,8 @@ export interface MaintenanceDeps {
 /** Plain maintenance work: only an operator with Workflow access may invoke this, using deployed recipes. */
 export async function runRepositoryVerification(raw: unknown, runId: string, deps: MaintenanceDeps = {}): Promise<MaintenanceResult> {
 	const input = VerifyRepositoryInput.parse(raw);
-	const publicCheckout = maintenanceUsesPat();
+	const mode = maintenanceMode();
+	const publicCheckout = mode !== "app";
 	if (!publicCheckout && !input.installationId)
 		throw new Error("App maintenance requires an installationId; alternatively configure MAINTENANCE_GITHUB_TOKEN");
 	const repo = requireRepo(input.repo, input.installationId ?? 0);
@@ -108,6 +109,10 @@ export async function runRepositoryVerification(raw: unknown, runId: string, dep
 		result.status = "infrastructure_error";
 	}
 	if (result.cleanup !== "terminated") result.status = "infrastructure_error";
+	if (mode === "public") {
+		result.reporting = "skipped";
+		return MaintenanceResult.parse(result);
+	}
 
 	// Only controller-owned metadata leaves for GitHub; repository stdout cannot inject mentions or leak credentials.
 	try {

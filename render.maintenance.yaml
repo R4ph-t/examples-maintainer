@@ -1,0 +1,32 @@
+# Read-only maintenance. Create the environment group with npm run setup:maintenance first.
+# No GitHub App, PAT, webhook gateway, or model key is used by this deployment.
+services:
+  - type: workflow
+    name: examples-maintainer
+    runtime: node
+    region: oregon
+    repo: https://github.com/R4ph-t/examples-maintainer
+    branch: feat/repository-maintenance
+    autoDeployTrigger: off
+    buildCommand: npm ci
+    startCommand: npm run start:maintenance
+    envVars:
+      - fromGroup: examples-maintainer
+  - type: cron
+    name: examples-maintainer-daily
+    runtime: node
+    region: oregon
+    plan: starter
+    repo: https://github.com/R4ph-t/examples-maintainer
+    branch: feat/repository-maintenance
+    autoDeployTrigger: off
+    schedule: "0 3 * * *"
+    buildCommand: npm ci
+    startCommand: npm run maintenance:dispatch -- --wait
+    envVars:
+      - fromGroup: examples-maintainer
+      - key: RENDER_WORKFLOW_SLUG
+        fromService:
+          type: workflow
+          name: examples-maintainer
+          property: slug

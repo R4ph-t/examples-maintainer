@@ -8,10 +8,21 @@ Render Sandbox, checks JavaScript syntax, starts the server, and verifies that
 The pilot has no build or unit-test script; the result does not invent those
 checks. It also does not exercise browser assets or prove a Render deployment.
 
+## Read-only deployment
+
+Use [the standalone setup guide](maintenance-setup.md) for the first phase.
+Set `MAINTENANCE_MODE=public` to explicitly disable GitHub authentication and
+publication, even when local App or PAT credentials exist. Public repositories
+are validated before anonymous cloning. Results use `reporting: skipped`.
+
+The configured pilot now includes Express JavaScript, Express TypeScript, and
+Hapi. `npm run maintenance:inventory` distinguishes configured repos from those
+still needing a reviewed recipe.
+
 ## What runs
 
 `verify-repository` accepts a configured repository, GitHub App installation
-ID, and exact 40-character commit SHA. Its recipe comes only from this
+ID in App mode, and exact 40-character commit SHA. Its recipe comes only from this
 service's deployed `factory.config.ts`, never task input or the target repo.
 
 Each run:
@@ -162,10 +173,10 @@ For a daily schedule, configure one Render Cron Job from this fork with:
 - schedule: `0 3 * * *` (03:00 UTC; 04:00 or 05:00 in Paris)
 - the four dispatcher variables above, supplied through environment groups
 
-No Cron Job is added to the Blueprint automatically. Start scheduling only
-after the manual acceptance run. The dispatcher returns the parent run ID; it
-does not wait for tests to finish, so a successful cron invocation means
-submission succeeded, not that the fleet passed. Inspect Workflow results and
+`render.maintenance.yaml` includes the daily Cron Job. Start scheduling only
+after the manual acceptance run. The dispatcher returns the parent run ID; without `--wait` it
+does not wait for tests to finish. The scheduled job uses `--wait` and exits
+nonzero for an unhealthy sweep. Inspect Workflow results and
 commit Checks for outcomes.
 
 ## Interpret results

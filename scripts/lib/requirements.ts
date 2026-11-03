@@ -70,7 +70,7 @@ export const HARNESS_KEY_ENV: readonly string[] = [...new Set(AGENTS.map((agent)
 export const SERVICE_ENV: Readonly<Record<Service, readonly string[]>> = {
 	gateway: ["GITHUB_WEBHOOK_SECRET", "RENDER_API_KEY", "RENDER_WORKFLOW_SLUG"],
 	workflows: ["RENDER_API_KEY", "RENDER_WORKSPACE_ID", "GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", ...HARNESS_KEY_ENV],
-	maintenance: ["RENDER_API_KEY", "RENDER_WORKSPACE_ID", "MAINTENANCE_GITHUB_TOKEN"],
+	maintenance: ["RENDER_API_KEY", "RENDER_WORKSPACE_ID", "MAINTENANCE_MODE"],
 };
 
 export interface EnvGroupSpec {
@@ -99,6 +99,12 @@ export const ENV_GROUPS: readonly EnvGroupSpec[] = [
 export const MAINTENANCE_ENV_GROUPS: readonly EnvGroupSpec[] = [
 	{ name: "examples-maintainer", services: ["maintenance"], keys: SERVICE_ENV.maintenance },
 ];
+/** Optional future write mode. Never link this group to public-mode services. */
+export const MAINTENANCE_PAT_ENV_GROUP: EnvGroupSpec = {
+	name: "examples-maintainer-github",
+	services: ["maintenance"],
+	keys: ["MAINTENANCE_GITHUB_TOKEN"],
+};
 
 /** The group a service reads `key` from, if any. */
 export function envGroupFor(service: Service, key: string): EnvGroupSpec | undefined {

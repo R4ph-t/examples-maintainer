@@ -15,4 +15,4 @@ export { GitHubHttp, type GitHubHttpOptions, type RequestOptions, type TokenProv
 export * from "./types.js";
 export * from "./git-data.js";
 
-export { assertPublicMaintenanceRepo, maintenanceReporter, maintenanceRevision, maintenanceUsesPat } from "./maintenance.js";
+export { assertPublicMaintenanceRepo, maintenanceMode, maintenanceReporter, maintenanceRevision, maintenanceUsesPat } from "./maintenance.js";

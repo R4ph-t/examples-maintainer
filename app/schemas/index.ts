@@ -4,4 +4,11 @@ export { Spec, SpecDraft, SpecNotes, type SpecValidation, validateSpec } from ".
 export { AutopilotInput, CancelInput, PrReviewInput, RefreshSnapshotInput, SpecApproval, SpecToPrInput, TriageInput } from "./tasks.js";
 export { TriageDecision } from "./triage.js";
 
-export { MaintenanceRecipe, MaintenanceResult, type MaintenanceStage, MaintenanceSweepInput, VerifyRepositoryInput } from "./maintenance.js";
+export {
+	MaintenanceRecipe,
+	MaintenanceResult,
+	type MaintenanceStage,
+	MaintenanceSweepInput,
+	MaintenanceSweepResult,
+	VerifyRepositoryInput,
+} from "./maintenance.js";

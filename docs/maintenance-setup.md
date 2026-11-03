@@ -1,0 +1,105 @@
+# Read-only example maintenance
+
+This deployment tests public example repositories on a daily schedule. It uses
+Render credentials only. GitHub Apps, PATs, webhooks, and model keys are not needed.
+It does not modify examples or recommend dependency patches.
+
+## Configuration and coverage
+
+`factory.config.ts` explicitly opts repositories into maintenance and defines
+trusted commands. The first batch is Express JavaScript, Express TypeScript,
+and Hapi. Commands were checked against their source and lockfiles. The
+TypeScript example has a build; the other two have syntax and HTTP checks.
+None of these examples has a unit-test script. Checks run on the sandbox's
+Node runtime, recorded in each result, rather than reproducing every Render
+service setting.
+
+Run `npm run maintenance:inventory` to list the organization's public repos.
+Each is marked `configured`, `needs_recipe`, or `excluded` (archived/disabled).
+Discovery does not automatically execute repositories or infer commands.
+
+## Prepare and deploy
+
+Use Node 24, run `npm ci`, then `npm run check`. Set `RENDER_API_KEY` in the
+ignored `.env` file. Configure the intended workspace with:
+
+```bash
+npm run setup:maintenance -- --workspace tea-YOUR_WORKSPACE
+```
+
+This reads the configured public revisions, checks Render workspace access,
+and creates/updates the `examples-maintainer` environment group with exactly
+`RENDER_API_KEY`, `RENDER_WORKSPACE_ID`, and `MAINTENANCE_MODE=public`.
+It also saves the workspace and mode to local `.env`. No GitHub credential is
+copied. This setup is separate from the inherited full factory's App runbook.
+
+Publish the tested branch before deployment. `render.maintenance.yaml` describes:
+
+- `examples-maintainer`: a Workflow, started with `npm run start:maintenance`.
+- `examples-maintainer-daily`: a Starter Cron Job, running
+  `npm run maintenance:dispatch -- --wait` at **03:00 UTC daily**.
+
+The cron's `RENDER_WORKFLOW_SLUG` must match the created Workflow's slug. Both
+services link the maintenance group. Manual creation through CLI/API can use
+the same commands, settings, and group links. Automatic deploys are off so a
+code push does not silently change the scheduled tests. Workflows and sandboxes
+use metered compute; the cron has its own billing.
+
+Validate the Blueprint against the workspace, deploy the Workflow, and verify
+that `verify-repository` and `maintenance-sweep` are registered. Run one manual
+sweep and inspect its result before enabling the daily cron. A successful deploy
+registers tasks but does not execute them.
+
+```bash
+npm run maintenance:dispatch -- --dry-run
+npm run maintenance:dispatch -- --wait
+```
+
+The second command submits real work, waits for completion, prints the report,
+and exits nonzero for a failed repository, infrastructure failure, or publication
+failure. Public-mode `reporting: skipped` is expected and does not fail a healthy
+run. To run one recipe directly from a local controller:
+
+```bash
+npm run maintenance:verify -- --repo render-examples/express-hello-world
+```
+
+## Read results
+
+Open the Workflow's run history in Render. The sweep result contains each repo's
+exact SHA, outcome, child run ID, sandbox ID, cleanup status, stage exits, and
+timings. Child results additionally retain bounded command output. Parent results
+exclude repository output. GitHub receives no writes in public mode.
+
+A Workflow run can succeed as a computation while its report contains failures;
+inspect `results[].status`. The cron checks those statuses and fails if any repo
+is unhealthy. A repository that cannot be resolved is recorded as
+`revision_unavailable`; the other repositories still run. No failed child is
+retried automatically.
+
+Each sweep runs one child at a time, each child uses a fresh sandbox, and every
+sandbox has a 30-minute provider timeout plus normal explicit cleanup. Independent
+manual sweeps can still overlap. The cron waits for completion, with a ten-hour
+caller limit, and Render prevents overlapping executions of the same cron.
+A canceled cron does not cancel its Workflow; inspect the existing run before
+starting another. Daily dispatch uses an idempotency key incorporating the UTC
+date, revisions, and recipes; Render retains that key for 24 hours per Workflow
+version. This is not a durable cross-version lock.
+
+Public GitHub API rate limits apply without authentication. The pilot makes only
+a small number of requests daily. Before expanding toward the 25-repository batch
+limit, account for metadata, commit lookup, inventory, and concurrent runs sharing
+the outbound rate limit. Failures remain explicit; no credential fallback occurs.
+
+## Acceptance and limits
+
+Accept this deployment only after a hosted sweep completes, expected stage results
+are inspected, each sandbox is confirmed terminated, and the cron path is tested.
+The previous disposable-fork live tests separately covered a deliberately broken
+response, healthy recovery, and a failed install. They do not replace hosted-run
+verification.
+
+Results use Render's Workflow retention. There is no long-term history database,
+custom dashboard, notification service, database fixture provisioning, automatic
+repair, or dependency patching in this phase. Add reviewed recipes to expand
+coverage; use the inventory to keep untested repos visible.

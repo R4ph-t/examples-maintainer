@@ -10,4 +10,4 @@ if (!name || !config.repos[name]?.maintenance) throw new Error("--repo must name
 const revision = await maintenanceRevision(name, config.repos[name].baseBranch);
 const result = await runRepositoryVerification({ repo: name, ...revision }, `manual-${randomUUID()}`);
 console.log(JSON.stringify(result, null, 2));
-process.exitCode = result.status === "passed" && result.reporting === "published" ? 0 : 1;
+process.exitCode = result.status === "passed" && result.reporting !== "failed" ? 0 : 1;

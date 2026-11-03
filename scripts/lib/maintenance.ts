@@ -19,12 +19,17 @@ export async function planMaintenance(
 		.sort(([a], [b]) => a.localeCompare(b));
 	if (repos.length === 0 || repos.length > 25) throw new Error("configure between 1 and 25 maintenance repositories per sweep");
 	const repositories = [];
+	const resolutionFailures: { repo: string; reason: "revision_unavailable" }[] = [];
 	const recipes = [];
 	for (const [repo, settings] of repos) {
 		recipes.push(MaintenanceRecipe.parse(settings.maintenance));
-		repositories.push({ repo, ...(await resolve(repo, settings.baseBranch)) });
+		try {
+			repositories.push({ repo, ...(await resolve(repo, settings.baseBranch)) });
+		} catch {
+			resolutionFailures.push({ repo, reason: "revision_unavailable" });
+		}
 	}
-	const input = MaintenanceSweepInput.parse({ repositories });
+	const input = MaintenanceSweepInput.parse({ repositories, ...(resolutionFailures.length ? { resolutionFailures } : {}) });
 	const hash = createHash("sha256").update(JSON.stringify({ input, recipes })).digest("hex");
 	return { input, idempotencyKey: `maintenance:${window}:${hash}` };
 }

@@ -413,3 +413,15 @@ statuses. The controller keeps the PAT; no GitHub credential enters the guest.
 App installation IDs are optional only for PAT maintenance. The full factory's
 App authentication and model-key requirements remain unchanged. See
 [maintenance setup](maintenance.md#pat-authentication-for-the-scheduled-maintainer).
+
+## Public maintenance mode
+
+`MAINTENANCE_MODE` explicitly selects `public`, `pat`, or `app`. Public mode
+ignores all GitHub credentials, uses anonymous reads and clones, and skips
+publication. It is the mode deployed by `setup:maintenance`. Without an explicit
+mode, existing behavior is preserved: a maintenance PAT selects PAT mode;
+otherwise App mode is used. Invalid modes fail closed.
+
+`SERVICE_ENV.maintenance` now requires only Render credentials, workspace ID,
+and mode. The optional PAT is in a separate `MAINTENANCE_PAT_ENV_GROUP`; do not
+link that group to public deployments. See [standalone setup](maintenance-setup.md).

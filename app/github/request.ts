@@ -91,7 +91,7 @@ export class GitHubHttp {
 				response = await this.fetchImpl(url, {
 					method,
 					headers: {
-						Authorization: `Bearer ${token}`,
+						...(token ? { Authorization: `Bearer ${token}` } : {}),
 						Accept: opts.accept ?? DEFAULT_ACCEPT,
 						"X-GitHub-Api-Version": "2022-11-28",
 						"User-Agent": "software-factory",

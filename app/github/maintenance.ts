@@ -5,8 +5,14 @@ import { type GitHubClient, githubFor } from "./client.js";
 import { GitHubHttp, type GitHubHttpOptions } from "./request.js";
 
 /** Explicit maintenance-only credential; never falls back to a user's ambient GH_TOKEN. */
+export function maintenanceMode(): "public" | "pat" | "app" {
+	const explicit = process.env.MAINTENANCE_MODE?.trim();
+	if (explicit) return z.enum(["public", "pat", "app"]).parse(explicit);
+	return process.env.MAINTENANCE_GITHUB_TOKEN?.trim() ? "pat" : "app";
+}
+
 export function maintenanceUsesPat(): boolean {
-	return Boolean(process.env.MAINTENANCE_GITHUB_TOKEN?.trim());
+	return maintenanceMode() === "pat";
 }
 
 function patHttp(opts: GitHubHttpOptions = {}): GitHubHttp {
@@ -21,11 +27,15 @@ function repoPath(fullName: string): string {
 	return `/repos/${fullName.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+function publicReadHttp(opts: GitHubHttpOptions): GitHubHttp {
+	return maintenanceMode() === "public" ? new GitHubHttp(() => "", opts) : patHttp(opts);
+}
+
 /** Refuse private cloning in PAT mode: a long-lived user credential must never enter a sandbox. */
 export async function assertPublicMaintenanceRepo(fullName: string, opts: GitHubHttpOptions = {}): Promise<void> {
-	const repo = z.object({ private: z.boolean(), full_name: z.string() }).parse(await patHttp(opts).json("GET", repoPath(fullName)));
+	const repo = z.object({ private: z.boolean(), full_name: z.string() }).parse(await publicReadHttp(opts).json("GET", repoPath(fullName)));
 	if (repo.private || repo.full_name.toLowerCase() !== fullName.toLowerCase()) {
-		throw new Error("PAT maintenance currently requires a public repository with the configured name");
+		throw new Error("Public checkout requires a public repository with the configured name");
 	}
 }
 
@@ -38,9 +48,9 @@ export async function maintenanceRevision(
 	const base = repoPath(fullName);
 	let installationId: number | undefined;
 	let http: GitHubHttp;
-	if (maintenanceUsesPat()) {
+	if (maintenanceMode() !== "app") {
 		await assertPublicMaintenanceRepo(fullName, opts);
-		http = patHttp(opts);
+		http = publicReadHttp(opts);
 	} else {
 		const app = new GitHubHttp(() => appJwt(), opts);
 		installationId = z.object({ id: z.number().int().positive() }).parse(await app.json("GET", `${base}/installation`)).id;
@@ -55,6 +65,7 @@ export async function maintenanceRevision(
 
 /** Controller-only publication. PATs use commit statuses; GitHub Apps retain detailed Check Runs. */
 export function maintenanceReporter(repo: RepoContext, opts: GitHubHttpOptions = {}): Pick<GitHubClient, "createMaintenanceCheck"> {
+	if (maintenanceMode() === "public") throw new Error("GitHub writes are disabled in public maintenance mode");
 	if (!maintenanceUsesPat()) return githubFor(repo, opts);
 	const http = patHttp(opts);
 	return {

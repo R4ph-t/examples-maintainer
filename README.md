@@ -1,3 +1,5 @@
+> **Read-only scheduled maintenance:** see [the standalone setup guide](docs/maintenance-setup.md). It needs no GitHub App or token.
+
 # examples-maintainer
 
 Scheduled, commit-pinned health checks for Render example repositories, built
