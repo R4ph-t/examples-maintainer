@@ -45,10 +45,11 @@ export function defineFactoryConfig(config: FactoryConfig): FactoryConfig {
 	return config;
 }
 
+// Isolated manual PR acceptance profile. Never deploy this branch to the daily maintainer.
 export default defineFactoryConfig({
 	repos: {
-		"render-examples/express-hello-world": {
-			dependencyUpdates: { packageManager: "yarn1" },
+		"R4ph-t/express-hello-world": {
+			dependencyUpdates: { packageManager: "yarn1", publishDrafts: true },
 			baseBranch: "main",
 			install: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
 			verify: ["node --check app.js"],
@@ -63,44 +64,9 @@ export default defineFactoryConfig({
 			},
 			egress: ["registry.npmjs.org", "registry.yarnpkg.com"],
 		},
-		"render-examples/express-hello-world-typescript": {
-			dependencyUpdates: { packageManager: "yarn1" },
+		"R4ph-t/django-mlpc1ydx": {
 			baseBranch: "master",
-			install: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
-			verify: ["npm run build"],
-			maintenance: {
-				install: {
-					name: "install",
-					command: "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
-					timeoutSeconds: 240,
-				},
-				checks: [{ name: "build", command: "npm run build", timeoutSeconds: 120 }],
-				smoke: {
-					start: "PORT=3001 node dist/app.js",
-					port: 3001,
-					path: "/",
-					expectedStatus: 200,
-					bodyIncludes: "Hello from Render!",
-					timeoutSeconds: 30,
-				},
-			},
-			egress: ["registry.npmjs.org", "registry.yarnpkg.com"],
-		},
-		"render-examples/hapi-quick-start": {
-			dependencyUpdates: { packageManager: "npm" },
-			baseBranch: "master",
-			install: "npm ci",
-			verify: ["node --check server.js"],
-			maintenance: {
-				install: { name: "install", command: "npm ci", timeoutSeconds: 180 },
-				checks: [{ name: "syntax", command: "node --check server.js", timeoutSeconds: 30 }],
-				smoke: { start: "node server.js", port: 3000, path: "/", expectedStatus: 200, bodyIncludes: "Hello, world!", timeoutSeconds: 30 },
-			},
-			egress: ["registry.npmjs.org"],
-		},
-		"render-examples/django": {
-			baseBranch: "main",
-			dependencyUpdates: { packageManager: "pip" },
+			dependencyUpdates: { packageManager: "pip", publishDrafts: true },
 			maintenance: {
 				runtime: "python",
 				install: {
