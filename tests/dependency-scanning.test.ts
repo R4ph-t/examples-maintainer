@@ -163,9 +163,18 @@ describe("scan workload boundaries", () => {
 		else w.state.mutate = true;
 		expect(await w.run()).toMatchObject({ status: "infrastructure_error", reason: "unconfirmed_execution" });
 	});
-	it("retains incomplete discovery without claiming all packages are current", async () => {
+	it("retains policy exclusions without failing an otherwise completed scan", async () => {
 		const w = scanWorld();
-		w.deps.discover = async () => ({ candidates: [candidate], skipped: [{ name: "other", reason: "registry_unavailable" }] });
+		w.deps.discover = async () => ({ candidates: [candidate], skipped: [{ name: "packaging", reason: "unsupported_range" }] });
+		expect(await w.run()).toMatchObject({
+			status: "completed",
+			discovery: { candidates: [candidate], skipped: [{ name: "packaging", reason: "unsupported_range" }] },
+			verification: "not_run",
+		});
+	});
+	it.each(["registry_unavailable", "unresolved_version"] as const)("retains incomplete discovery for %s", async (reason) => {
+		const w = scanWorld();
+		w.deps.discover = async () => ({ candidates: [candidate], skipped: [{ name: "other", reason }] });
 		expect(await w.run()).toMatchObject({ status: "incomplete", reason: "discovery_incomplete", priority: "high" });
 	});
 });

@@ -128,8 +128,10 @@ export async function runDependencyScan(raw: unknown, runId: string, deps: Depen
 				result.rankedCandidates = rankScanCandidates(result.discovery.candidates, result.audit);
 				result.priority = auditPriority(result.audit);
 				result.unratedFindings = result.audit.findings.filter((f) => f.severity === "unknown").length;
-				result.status = result.discovery.skipped.length ? "incomplete" : "completed";
-				if (result.discovery.skipped.length) result.reason = "discovery_incomplete";
+				// Unsupported declarations remain visible policy exclusions; failed lookups are incomplete evidence.
+				const incomplete = result.discovery.skipped.some((s) => s.reason !== "unsupported_range");
+				result.status = incomplete ? "incomplete" : "completed";
+				if (incomplete) result.reason = "discovery_incomplete";
 			},
 		);
 	} catch {

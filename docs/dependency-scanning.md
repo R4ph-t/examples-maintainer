@@ -44,7 +44,10 @@ it does not infer transitive remediation, exploitability, or runtime reachabilit
 An audit finding without an eligible candidate remains visible for manual work.
 
 `completed` means scan evidence is complete and cleanup confirmed, even if it
-contains vulnerabilities. Missing audit/discovery evidence is `incomplete`;
+contains vulnerabilities. Unsupported dependency ranges remain explicit policy
+exclusions in `discovery.skipped`; completion does not claim those packages are
+current or have an automated update. Missing audits, failed registry lookups,
+or unresolved installed versions are `incomplete`;
 execution or cleanup uncertainty is `infrastructure_error`. With `--wait`, either
 non-completed status exits nonzero. Inspect findings separately from job health.
 

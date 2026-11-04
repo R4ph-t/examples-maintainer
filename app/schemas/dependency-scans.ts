@@ -59,7 +59,7 @@ export const DependencyScanResult = z
 				!r.runtime ||
 				r.audit?.status !== "completed" ||
 				!r.discovery ||
-				r.discovery.skipped.length)
+				r.discovery.skipped.some((s) => s.reason !== "unsupported_range"))
 		)
 			ctx.addIssue({
 				code: "custom",
