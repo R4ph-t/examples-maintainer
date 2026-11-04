@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { AuditComparison, AuditReport } from "./audits.js";
 import { DependencyPublishResult } from "./dependency-publishing.js";
-import { AuditReport, AuditComparison } from "./audits.js";
 import { MaintenanceResult, VerifyRepositoryInput } from "./maintenance.js";
 
 export const DependencyName = z
@@ -21,6 +21,8 @@ export const DependencyCandidate = z.strictObject({
 	kind: z.enum(["patch", "minor"]),
 });
 export type DependencyCandidate = z.infer<typeof DependencyCandidate>;
+export const DependencyReviewInput = VerifyRepositoryInput.extend({ selectedCandidate: DependencyCandidate.optional() });
+export type DependencyReviewInput = z.infer<typeof DependencyReviewInput>;
 
 export const DependencyFile = z.strictObject({
 	path: z.enum(["package.json", "package-lock.json", "yarn.lock", "requirements.txt"]),

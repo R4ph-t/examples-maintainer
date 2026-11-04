@@ -31,7 +31,9 @@
     "start:maintenance": "tsx app/entrypoints/maintenance.ts",
     "maintenance:verify": "node --env-file-if-exists=.env --import tsx scripts/verify-maintenance.ts",
     "maintenance:inventory": "tsx scripts/inventory-maintenance.ts",
-    "setup:maintenance": "node --env-file-if-exists=.env --import tsx scripts/setup-maintenance.ts"
+    "setup:maintenance": "node --env-file-if-exists=.env --import tsx scripts/setup-maintenance.ts",
+    "maintenance:scan": "node --env-file-if-exists=.env --import tsx scripts/start-dependency-scan.ts",
+    "maintenance:verify-update": "node --env-file-if-exists=.env --import tsx scripts/verify-dependency-candidate.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.83.0",

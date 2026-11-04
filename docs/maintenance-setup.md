@@ -1,19 +1,27 @@
 # Read-only example maintenance
 
-This deployment tests public example repositories on a daily schedule. It uses
+The guide below describes public-mode setup. The current Blueprint additionally
+links `examples-maintainer-github` to the Workflow and sets its mode to `pat`.
+That group holds `MAINTENANCE_GITHUB_TOKEN` and `MAINTENANCE_PUBLISH_DRAFTS=false`.
+Keep GitHub credentials out of the shared `examples-maintainer` group. The cron
+keeps public mode and receives no PAT. For a fully public first deployment, omit
+the GitHub group link and set the Workflow's mode to `public`. PAT mode alone
+does not enable draft publication; standalone health checks can publish statuses.
+
+This deployment scans public example dependencies every six hours and verifies
+explicitly selected updates in separate clean environments. It uses
 Render credentials only. GitHub Apps, PATs, webhooks, and model keys are not needed.
-It produces tested dependency proposals without modifying GitHub repositories.
+Selected verification produces tested proposals without modifying GitHub repositories.
 See [the dependency loop](dependency-maintenance.md) for policy and retained artifacts.
 
 ## Configuration and coverage
 
 `factory.config.ts` explicitly opts repositories into maintenance and defines
-trusted commands. The first batch is Express JavaScript, Express TypeScript,
-and Hapi. Commands were checked against their source and lockfiles. The
-TypeScript example has a build; the other two have syntax and HTTP checks.
-None of these examples has a unit-test script. Checks run on the sandbox's
-Node runtime, recorded in each result, rather than reproducing every Render
-service setting.
+trusted commands. The four pilots are Express JavaScript, Express TypeScript,
+Hapi, and Django. TypeScript has a build; the JavaScript examples have syntax
+and HTTP checks. Django uses system checks, SQLite migrations, and HTTP checks.
+These recipes do not provide substantive unit-test suites or reproduce every
+production service setting. Runtime versions are recorded in each result.
 
 Run `npm run maintenance:inventory` to list the organization's public repos.
 Each is marked `configured`, `needs_recipe`, or `excluded` (archived/disabled).
@@ -59,7 +67,11 @@ Publish the tested branch before deployment. `render.maintenance.yaml` describes
 
 - `examples-maintainer`: a Workflow, started with `npm run start:maintenance`.
 - `examples-maintainer-daily`: a Starter Cron Job, running
-  `npm run maintenance:dependencies -- --wait` at **03:00 UTC daily**.
+  `npm run maintenance:scan -- --wait` at **00:00, 06:00, 12:00, and 18:00 UTC**.
+  The existing resource name is retained to avoid creating a second cron.
+
+This is the desired configuration; existing hosted services change only after
+deployment. The new scan path requires live acceptance before scheduling.
 
 The cron's `RENDER_WORKFLOW_SLUG` must match the created Workflow's slug. Both
 services link the maintenance group. Manual creation through CLI/API can use
@@ -68,58 +80,58 @@ code push does not silently change the scheduled tests. Workflows and sandboxes
 use metered compute; the cron has its own billing.
 
 Validate the Blueprint against the workspace, deploy the Workflow, and verify
-that `verify-repository`, `maintenance-sweep`, `dependency-review`, and
-`dependency-sweep` are registered. Run one manual
-sweep and inspect its result before enabling the daily cron. A successful deploy
-registers tasks but does not execute them.
+that `verify-repository`, `maintenance-sweep`, `dependency-review`,
+`dependency-sweep`, `dependency-publish`, `dependency-scan`,
+`dependency-scan-sweep`, and `dependency-verify-selected` are registered.
+A successful deploy registers tasks but does not execute them.
 
 ```bash
-npm run maintenance:dependencies -- --dry-run
-npm run maintenance:dependencies -- --wait --out ./dependency-results
+npm run maintenance:scan -- --dry-run
+npm run maintenance:scan -- --wait --out ./scan-results
 ```
 
-The second command submits real work, waits for completion, prints the report,
-and exits nonzero for a failed baseline, rejected candidate, or infrastructure
-failure. GitHub publication remains disabled. The original health-only sweep is
-available as `maintenance:dispatch`. To run one health recipe directly:
-
-```bash
-npm run maintenance:verify -- --repo render-examples/express-hello-world
-```
+The second command submits real scan work, waits for completion, and exports
+ranked evidence. Inspect a cold scan, a subsequent window's cache hit, and an
+explicit candidate verification before enabling the recurring cron. Follow
+[the scanning runbook](dependency-scanning.md) for selection, freshness rules,
+cache behavior, and acceptance. Snapshot reuse requires snapshot read/write
+permission on the intended sandbox group; unauthorized restore fails closed.
 
 ## Read results
 
-Open the Workflow's run history in Render. The dependency sweep contains each
-repo's exact SHA, outcome, child run ID, proposed update, and artifact identity.
-Child results retain the diff and full baseline/candidate stage results, bounded
-command output, sandbox IDs, and cleanup status. GitHub receives no writes.
+The scan sweep retains each repo's exact SHA, priority, outcome, and child run ID.
+Child results retain audits, ranked candidates, source/tool identity, snapshot
+receipts, and cleanup status. Scan completion does not mean the application
+builds or runs. Full selected verification retains the separate baseline and
+candidate checks and patch. GitHub receives no writes in public mode.
 
 A Workflow run can succeed as a computation while its report contains failures;
-inspect `results[].status`. The cron checks those statuses and fails if any repo
-is unhealthy. A repository that cannot be resolved is recorded as
-`revision_unavailable`; the other repositories still run. No failed child is
-retried automatically.
+inspect `results[].status`. The scan cron exits nonzero for incomplete scans or
+infrastructure errors; finding vulnerabilities itself does not fail scan execution.
+A repository that cannot be resolved is recorded explicitly; others still run.
+Children are sequential within each sweep, without automatic retries. Independent
+manual runs can overlap. Every sandbox has a 30-minute provider timeout and
+explicit cleanup. Canceling the cron does not cancel its Workflow.
 
-Each sweep runs one child at a time, each child uses a fresh sandbox, and every
-sandbox has a 30-minute provider timeout plus normal explicit cleanup. Independent
-manual sweeps can still overlap. The cron waits for completion, with a ten-hour
-caller limit, and Render prevents overlapping executions of the same cron.
-A canceled cron does not cancel its Workflow; inspect the existing run before
-starting another. Daily dispatch uses an idempotency key incorporating the UTC
-date, revisions, and recipes. A repeated dispatch can return an earlier run,
-including after a Workflow release. For an explicit fresh acceptance test, submit
-the planned input with a distinct idempotency key and verify the resulting run's
-task version and start time. Daily idempotency is not a durable history or lock.
+Scan dispatch deduplicates within canonical six-hour UTC windows using revision
+and recipe identity. Provider deduplication can reuse a run across releases and
+is not a permanent history or lock. Inspect task version and start time when
+accepting a new deployment; do not mistake an earlier run for new evidence.
+
+The original full combined sweep remains available as
+`maintenance:dependencies -- --wait`, and health-only checks as
+`maintenance:dispatch -- --wait`. For their result details, see
+[dependency maintenance](dependency-maintenance.md) and [maintenance](maintenance.md).
 
 Public GitHub API rate limits apply without authentication. The pilot makes only
-a small number of requests daily. Before expanding toward the 25-repository batch
+a small number of requests per sweep. Before expanding toward the 25-repository batch
 limit, account for metadata, commit lookup, inventory, and concurrent runs sharing
 the outbound rate limit. Failures remain explicit; no credential fallback occurs.
 
 ## Acceptance and limits
 
-Accept this deployment only after a hosted sweep completes, expected stage results
-are inspected, each sandbox is confirmed terminated, and the cron path is tested.
+Accept this deployment only after hosted scans and selected verification complete,
+expected results are inspected, sandbox cleanup is confirmed, and the cron path is tested.
 The previous disposable-fork live tests separately covered a deliberately broken
 response, healthy recovery, and a failed install. They do not replace hosted-run
 verification.

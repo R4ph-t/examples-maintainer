@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { GitHubError } from "../app/github/index.js";
 import { config } from "../app/config/index.js";
+import { GitHubError } from "../app/github/index.js";
 import type { Sandbox } from "../app/sandbox/index.js";
-import { DependencyReviewResult, type DependencySnapshot, type MaintenanceResult, type DependencyCandidate } from "../app/schemas/index.js";
-import { discoverUpdates } from "../app/workflows/dependencies/discovery.js";
+import { type DependencyCandidate, DependencyReviewResult, type DependencySnapshot, type MaintenanceResult } from "../app/schemas/index.js";
 import { buildArtifact } from "../app/workflows/dependencies/artifact.js";
-import { runDependencyReview, type DependencyReviewDeps } from "../app/workflows/dependencies/review.js";
+import { discoverUpdates } from "../app/workflows/dependencies/discovery.js";
 import { dependencySweep } from "../app/workflows/dependencies/index.js";
+import { type DependencyReviewDeps, runDependencyReview } from "../app/workflows/dependencies/review.js";
 import { planDependencyMaintenance, waitForDependencyMaintenance } from "../scripts/lib/dependency-maintenance.js";
 import { REPO } from "./fixtures/config.js";
 
@@ -164,6 +164,23 @@ describe("dependency artifacts", () => {
 });
 
 describe("dependency review", () => {
+	it("honors an explicit candidate even when a different package sorts first", async () => {
+		const w = world();
+		w.deps.discover = async () => ({ candidates: [{ ...candidate, name: "aaa" }, candidate], skipped: [] });
+		const result = await runDependencyReview({ ...input, selectedCandidate: candidate }, "run-1", w.deps);
+		expect(result.status).toBe("ready_for_review");
+		expect(result.candidate).toEqual(candidate);
+	});
+	it("does not silently replace a scanned candidate when a newer version appears", async () => {
+		const w = world();
+		const result = await runDependencyReview(
+			{ ...input, selectedCandidate: { ...candidate, toVersion: "5.1.0", toRange: "^5.1.0" } },
+			"run-1",
+			w.deps,
+		);
+		expect(result).toMatchObject({ status: "infrastructure_error", reason: "lookup_incomplete" });
+		expect(w.deps.open).not.toHaveBeenCalled();
+	});
 	it("tests baseline and candidate separately and retains a reviewable patch only after exact-content verification", async () => {
 		const w = world();
 		const result = await runDependencyReview(input, "run-1", w.deps);

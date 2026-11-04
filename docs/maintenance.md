@@ -58,7 +58,9 @@ Each run:
    publication in public mode. Dependency baseline/candidate checks always skip
    this publication; a separate gated task handles draft proposals.
 
-No dependency snapshot is restored or created. Every command has a guest
+Health and full update verification never restore dependency snapshots. The
+separate [scan pass](dependency-scanning.md) can reuse prepared snapshots.
+Every verification command has a guest
 `timeout` and a separate client deadline. The host controls the smoke-test
 script outside the writable checkout. Repository commands and app logs remain
 untrusted; only stage metadata goes to GitHub. Bounded stdout/stderr tails are
@@ -148,7 +150,7 @@ The result's `checkUrl` points to the status API resource in PAT mode. Detailed
 stage output remains in the Workflow result (or CLI JSON), not on GitHub. Status
 writes are not retried after an ambiguous response.
 
-For hosting, `npm run start:maintenance` registers the five health, dependency
+For hosting, `npm run start:maintenance` registers the health, scan, selected-verification, dependency
 review/sweep, and draft-publication tasks, without the inherited agent workflows. It needs the three variables in `SERVICE_ENV.maintenance`, supplied through
 the `examples-maintainer` environment group in `MAINTENANCE_ENV_GROUPS`. No
 webhook gateway, App installation, or model provider key is needed. The inherited
@@ -194,20 +196,20 @@ can be tested the next day. Provider idempotency has bounded retention and can r
 Workflow versions; it is not a permanent run ledger. Use a distinct key for a
 fresh acceptance run after changing execution behavior.
 
-For a daily schedule, configure one Render Cron Job from this fork with:
+For frequent scanning, `render.maintenance.yaml` specifies one Render Cron Job:
 
 - build command: `npm ci`
-- start command: `npm run maintenance:dependencies -- --wait`
-- schedule: `0 3 * * *` (03:00 UTC; 04:00 or 05:00 in Paris)
-- the approved scoped Render key, workspace ID, Workflow slug, and maintenance
-  mode supplied through environment groups; GitHub credentials only when needed
+- start command: `npm run maintenance:scan -- --wait`
+- schedule: `0 */6 * * *` (every six hours, UTC)
+- scoped Render key, workspace ID, Workflow slug, and maintenance mode through
+  environment groups; GitHub credentials only when needed
 
-`render.maintenance.yaml` includes the daily Cron Job. Start scheduling only
-after the manual acceptance run. The dispatcher returns the parent run ID; without `--wait` it
-does not wait for tests to finish. The scheduled job uses `--wait` and exits
-nonzero for an unhealthy sweep. The Blueprint uses the audited dependency loop;
-`maintenance:dispatch -- --wait` remains available for health-only checks. Inspect
-Workflow results for all modes, and GitHub artifacts when publication is enabled.
+This desired configuration requires deployment and manual acceptance before
+scheduling. Follow [dependency scanning](dependency-scanning.md) to inspect scan
+results and select an update for full verification. The legacy combined
+`maintenance:dependencies -- --wait` and health-only
+`maintenance:dispatch -- --wait` remain available manually. No scan publishes a
+GitHub artifact or counts as application verification.
 
 ## Interpret results
 
@@ -256,7 +258,7 @@ GitHub, and Workflow tests use fakes. These do not prove live Render execution.
   runtime/image selection.
 - More reviewed repository recipes, retained dependency inventories, and
   searchable health history.
-- Candidate coverage beyond one update per repository, external triggers, and
+- Persistent candidate queueing, external triggers, and
   bounded repair rounds verified in separate sandboxes.
 - Persistent coordination, cleanup reconciliation, and change-only digests.
 

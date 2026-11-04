@@ -1,19 +1,20 @@
 import { isDeepStrictEqual } from "node:util";
-import { requireRepo, type RepoContext } from "../../config/index.js";
+import { type RepoContext, requireRepo } from "../../config/index.js";
 import { GitHubError, maintenanceMode } from "../../github/index.js";
 import { openFreshSandbox, prepareFreshCheckout, type Sandbox, SandboxClient, sandboxClient, withSandbox } from "../../sandbox/index.js";
 import {
-	DependencyReviewResult,
-	type DependencySnapshot,
+	type AuditReport,
 	type DependencyCandidate,
 	type DependencyDiscovery,
+	DependencyReviewInput,
+	DependencyReviewResult,
+	type DependencySnapshot,
 	type MaintenanceResult,
-	type AuditReport,
 	VerifyRepositoryInput,
 } from "../../schemas/index.js";
 import { type MaintenanceDeps, runRepositoryVerification } from "../maintenance/verify.js";
+import { type DependencyFileOps, dependencyAdapter } from "./adapters.js";
 import { buildArtifact } from "./artifact.js";
-import { dependencyAdapter, type DependencyFileOps } from "./adapters.js";
 import { compareAuditReports, prioritizeCandidates } from "./audit.js";
 
 export interface DependencyReviewDeps {
@@ -27,7 +28,8 @@ export interface DependencyReviewDeps {
 
 /** One bounded candidate, with independent baseline, generation, and clean verification sandboxes. No publication. */
 export async function runDependencyReview(raw: unknown, runId: string, deps: DependencyReviewDeps = {}): Promise<DependencyReviewResult> {
-	const input = VerifyRepositoryInput.parse(raw);
+	const request = DependencyReviewInput.parse(raw);
+	const input = VerifyRepositoryInput.parse({ repo: request.repo, sha: request.sha, installationId: request.installationId });
 	const repo = requireRepo(input.repo, input.installationId ?? 0);
 	const manager = repo.config.dependencyUpdates?.packageManager;
 	if (!manager || !repo.config.maintenance) throw new Error("Dependency updates are not enabled for this repository");
@@ -72,7 +74,14 @@ export async function runDependencyReview(raw: unknown, runId: string, deps: Dep
 		}
 		result.discovery = await (deps.discover ?? adapter.discover)(installed);
 		result.discovery.candidates = prioritizeCandidates(result.discovery.candidates, result.audit.baseline);
-		const candidate: DependencyCandidate | undefined = result.discovery.candidates[0];
+		const candidate: DependencyCandidate | undefined = request.selectedCandidate
+			? result.discovery.candidates.find((c) => isDeepStrictEqual(c, request.selectedCandidate))
+			: result.discovery.candidates[0];
+		if (request.selectedCandidate && !candidate) {
+			result.status = "infrastructure_error";
+			result.reason = "lookup_incomplete";
+			return finish(result);
+		}
 		if (!candidate) {
 			const incomplete = result.discovery.skipped.some((s) => ["registry_unavailable", "unresolved_version"].includes(s.reason));
 			result.status = incomplete ? "infrastructure_error" : "no_eligible_update";

@@ -1,5 +1,5 @@
-# Read-only maintenance. Create the environment group with npm run setup:maintenance first.
-# No GitHub App, PAT, webhook gateway, or model key is used by this deployment.
+# Maintenance controller uses the approved PAT; draft publication remains separately gated.
+# Create examples-maintainer and examples-maintainer-github before applying this Blueprint.
 services:
   - type: workflow
     name: examples-maintainer
@@ -12,7 +12,11 @@ services:
     startCommand: npm run start:maintenance
     envVars:
       - fromGroup: examples-maintainer
+      - fromGroup: examples-maintainer-github
+      - key: MAINTENANCE_MODE
+        value: pat
   - type: cron
+    # Keep the existing resource name when replacing its daily combined sweep.
     name: examples-maintainer-daily
     runtime: node
     region: oregon
@@ -20,9 +24,9 @@ services:
     repo: https://github.com/R4ph-t/examples-maintainer
     branch: feat/repository-maintenance
     autoDeployTrigger: off
-    schedule: "0 3 * * *"
+    schedule: "0 */6 * * *"
     buildCommand: npm ci
-    startCommand: npm run maintenance:dependencies -- --wait
+    startCommand: npm run maintenance:scan -- --wait
     envVars:
       - fromGroup: examples-maintainer
       - key: RENDER_WORKFLOW_SLUG

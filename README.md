@@ -2,18 +2,21 @@
 
 # examples-maintainer
 
-Scheduled, commit-pinned health checks for Render example repositories, built
+Scheduled, commit-pinned maintenance for Render example repositories, built
 as a fork of [software-factory](https://github.com/render-examples/software-factory).
 
-The first implementation adds `verify-repository`, `maintenance-sweep`, and
-`npm run maintenance:dispatch`. Each repository runs in a fresh Render Sandbox;
-results include stage outcomes, application smoke tests, and cleanup status,
-with a GitHub Check on the tested commit. The Express pilot is configured.
+The maintenance harness separates frequent dependency scans from selected update
+verification. Scans refresh advisory and version evidence, rank candidate updates,
+and can reuse prepared sandbox environments. A selected update still receives
+independent clean baseline and candidate checks before it becomes a review artifact.
+The configured pilots are Express JavaScript, Express TypeScript, Hapi, and Django.
 
 Start with [Example maintenance](docs/maintenance.md) for recipes, dispatch,
 setup requirements, local-versus-live validation, and the remaining roadmap.
-Deployment and scheduling are manual. Dependency upgrades and agent-assisted
-repair are planned; the current maintenance tasks make no model calls.
+See [scan and prioritize](docs/dependency-scanning.md) for the frequent pass,
+snapshot identity, and explicit update selection, and [draft proposals](docs/dependency-publishing.md)
+for the separately gated GitHub writer. Deployment and scheduling are manual;
+the maintenance tasks make no model calls and never merge updates.
 
 The original factory capabilities remain available below.
 

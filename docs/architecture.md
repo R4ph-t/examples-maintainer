@@ -306,6 +306,26 @@ view. The provider timeout covers hard cancellation, and results distinguish
 unconfirmed cleanup. There is no persistent scheduler ledger, global lock, or
 notification service. See [maintenance](maintenance.md) for operation and limits.
 
+### Dependency scan and selected verification
+
+`dependency-scan` refreshes advisory and version evidence and reports an urgency
+based on known severity and direct fix metadata. It never reports application
+verification or writes to GitHub. `dependency-scan-sweep` retains compact results
+in urgency order. Neither task is a persistent queue or a human review record.
+
+Public/PAT scans can reuse credential-free filesystem snapshots. The cache
+validates the exact source revision, recipe/tool identity, runtime and dependency
+inventory, and a bounded lifetime. App-mode scans bypass this cache because their
+checkout preparation can stage a GitHub credential. Cache state is an execution
+optimization and cannot authorize publishing.
+
+`dependency-verify-selected` loads a completed scan from the same Workflow,
+validates freshness and current source/configuration, and starts a normal
+`dependency-review` for the exact selected candidate. That review independently
+rediscovers the candidate and runs clean baseline and candidate verification.
+Publishing still requires that review's retained evidence and its existing gates.
+See [dependency scanning](dependency-scanning.md) for operation and limitations.
+
 ### PAT maintenance boundary
 
 The standalone maintenance entrypoint registers only the maintenance tasks.

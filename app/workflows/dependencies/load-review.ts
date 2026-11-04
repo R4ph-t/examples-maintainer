@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireEnv, TASKS } from "../../config/index.js";
-import { DependencyReviewResult, VerifyRepositoryInput } from "../../schemas/index.js";
+import { DependencyReviewInput, DependencyReviewResult } from "../../schemas/index.js";
 
 const RunId = z
 	.string()
@@ -53,7 +53,7 @@ export async function loadDependencyReview(reviewRunId: string, publisherRunId: 
 		reviewTask.workflowId !== publisherTask.workflowId
 	)
 		throw new Error("Review is not from this maintenance Workflow");
-	const [input] = z.tuple([VerifyRepositoryInput]).parse(reviewRun.input);
+	const [input] = z.tuple([DependencyReviewInput]).parse(reviewRun.input);
 	const [review] = z.tuple([DependencyReviewResult]).parse(reviewRun.results);
 	if (review.runId !== reviewRunId || review.repo !== input.repo || review.sha !== input.sha) throw new Error("Review evidence identity mismatch");
 	return { review, workflowId: reviewTask.workflowId };

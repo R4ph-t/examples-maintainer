@@ -434,8 +434,16 @@ link that group to public deployments. See [standalone setup](maintenance-setup.
 
 ## Dependency update proposals
 
+The frequent `dependency-scan-sweep` uses the same opted-in repositories and
+install recipes but does not run application checks or generate patches. Its
+ranked results feed explicit `dependency-verify-selected` calls. Scans currently
+cover configured repositories only, with a 25-repository batch limit; discovery
+of a public repository does not authorize its execution. No new environment
+variables or GitHub permissions are needed. See [dependency scanning](dependency-scanning.md)
+for the six-hour scheduling window, 24-hour prepared cache, and verification gates.
+
 `RepoConfig.dependencyUpdates` opts a repository into the dependency loop and
-selects `packageManager: "npm" | "yarn1"`. A maintenance recipe is required. The
+selects `packageManager: "npm" | "yarn1" | "pip"`. A maintenance recipe is required. The
 loop tests one stable patch/minor update per run, preserving the package manager
 and frozen-install recipe. See [dependency maintenance](dependency-maintenance.md)
 for supported manifests, artifact limits, scheduling, and result semantics.

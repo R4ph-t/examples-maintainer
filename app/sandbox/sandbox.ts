@@ -60,6 +60,13 @@ export async function openFreshSandbox(repo: RepoContext, client: SandboxClient 
 	return connectSandbox(id, client);
 }
 
+/** Restores only an operator-selected prepared cache; the caller validates it inside withSandbox. */
+export async function openSnapshotSandbox(repo: RepoContext, snapshotName: string, client: SandboxClient = sandboxClient()): Promise<Sandbox> {
+	if (!/^scan-[a-f0-9]{59}$/.test(snapshotName)) throw new Error("Invalid maintenance snapshot name");
+	const { id } = await client.call(() => client.api.create({ snapshotName, timeoutSeconds: 1800, networkPolicy: builderEgress(repo) }));
+	return connectSandbox(id, client);
+}
+
 export interface OpenSandboxDeps extends SnapshotDeps {
 	client?: SandboxClient;
 	resolveBaseHead?: (repo: RepoContext, deps: SnapshotDeps) => Promise<string>;

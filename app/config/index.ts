@@ -1,5 +1,5 @@
-import { MaintenanceRecipe } from "../schemas/maintenance.js";
 import config, { type FactoryConfig, type RepoConfig } from "../../factory.config.js";
+import { MaintenanceRecipe } from "../schemas/maintenance.js";
 
 export { config, type RepoConfig };
 
@@ -88,5 +88,8 @@ export const TASKS = {
 	dependencyReview: "dependency-review",
 	dependencySweep: "dependency-sweep",
 	dependencyPublish: "dependency-publish",
+	dependencyScan: "dependency-scan",
+	dependencyScanSweep: "dependency-scan-sweep",
+	dependencyVerifySelected: "dependency-verify-selected",
 } as const;
 export type TaskName = (typeof TASKS)[keyof typeof TASKS];

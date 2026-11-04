@@ -47,6 +47,9 @@ const TASK_NAMES = [
 	"maintenance-sweep",
 	"dependency-review",
 	"dependency-sweep",
+	"dependency-scan",
+	"dependency-scan-sweep",
+	"dependency-verify-selected",
 	"dependency-publish",
 ];
 

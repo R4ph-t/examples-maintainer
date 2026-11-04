@@ -3,7 +3,12 @@
 The dependency loop is enabled for the configured Express JavaScript,
 Express TypeScript, Hapi, and Django examples. It produces review artifacts. GitHub publication is disabled by default. A GitHub PAT is not required in public mode.
 
-## What each run does
+The default Blueprint schedule now runs the separate [scan pass](dependency-scanning.md).
+Use retained scan evidence to select which update receives the full verification
+below. The combined `maintenance:dependencies` command remains available for
+manual regression sweeps; it is no longer the intended frequent scheduled job.
+
+## What each full verification does
 
 1. Pin the configured branch to an exact commit and run the existing install,
    build/syntax, and HTTP smoke recipe in a fresh sandbox.
@@ -50,9 +55,12 @@ are known-advisory evidence, not a guarantee that every minor release is compati
 The pilot examples have no substantive unit tests; their results distinguish syntax,
 TypeScript build, and HTTP smoke checks.
 
-Only the first eligible candidate is tested per repo per daily run. Other
+The legacy combined sweep tests the first eligible candidate per repository. Other
 candidates remain visible in the discovery result. Until a proposal is merged,
-subsequent days can propose the same update again. Published proposals use immutable artifact branches and persistent PR markers
+subsequent combined sweeps can propose the same update again. The separate scan
+path exposes ranked candidates and accepts an explicit selection, so an operator
+can test another candidate without merging the first. It does not yet maintain a
+persistent queue or automatically skip pending proposals. Published proposals use immutable artifact branches and persistent PR markers
 for deduplication. There is no automatic repair, merge, or major-version migration.
 See [Python maintenance](python-maintenance.md) for exact requirements pins and
 [security audits](security-audits.md) for audit interpretation and limitations.
@@ -72,11 +80,13 @@ runs real work, waits, and exports the sweep summary, per-repository JSON, and
 candidate `.patch` files. Filenames include the review status so rejected patches
 cannot be mistaken for approved ones. Review the JSON alongside any patch.
 
-The hosted cron runs `npm run maintenance:dependencies -- --wait`. Child Workflow
+For a manual combined sweep, run `npm run maintenance:dependencies -- --wait`.
+The Blueprint now specifies `maintenance:scan -- --wait`; existing hosted cron
+configuration changes only when explicitly deployed. Child Workflow
 results retain the full patch and comparison evidence; the sweep retains compact
 summaries and child run IDs. Retention follows Render's Workflow retention. There
 is no separate artifact store yet. Export artifacts while results are retained.
-Cron exits unsuccessfully for a failed baseline, rejected candidate, generation
+The combined sweep command exits unsuccessfully for a failed baseline, rejected candidate, generation
 failure, or infrastructure failure. `no_eligible_update` is healthy but can include
 explicitly skipped unsupported declarations.
 
