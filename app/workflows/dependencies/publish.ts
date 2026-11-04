@@ -9,7 +9,7 @@ import {
 	type DependencyRootEntry,
 	dependencyPublishingClient,
 } from "../../github/dependency-publishing.js";
-import { maintenanceMode } from "../../github/index.js";
+import { GitHubError, maintenanceMode } from "../../github/index.js";
 import { AuditReport } from "../../schemas/audits.js";
 import { DependencyReviewResult } from "../../schemas/dependencies.js";
 import { DependencyPublishInput, DependencyPublishResult } from "../../schemas/dependency-publishing.js";
@@ -161,7 +161,13 @@ export async function runDependencyPublication(raw: unknown, deps: DependencyPub
 			} catch (e) {
 				if (e instanceof Refusal) throw e;
 				const reconciled = await existingPull(head);
-				if (!reconciled) throw new Error("Draft creation is unconfirmed");
+				if (!reconciled) {
+					// Only a bounded status reaches logs; API bodies can contain credentials or repository content.
+					console.warn("Dependency draft creation unconfirmed", {
+						httpStatus: e instanceof GitHubError ? e.status : null,
+					});
+					throw new Error("Draft creation is unconfirmed");
+				}
 				pull = reconciled;
 				result.status = "reused";
 			}

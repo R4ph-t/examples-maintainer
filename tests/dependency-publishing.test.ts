@@ -12,6 +12,7 @@ import {
 	type DependencyRootEntry,
 	dependencyPublishingClient,
 } from "../app/github/dependency-publishing.js";
+import { GitHubError } from "../app/github/index.js";
 import type { AuditReport } from "../app/schemas/audits.js";
 import type { DependencyCandidate, DependencyReviewResult, MaintenanceResult } from "../app/schemas/index.js";
 import { buildArtifact } from "../app/workflows/dependencies/artifact.js";
@@ -43,6 +44,7 @@ beforeEach(() => {
 afterEach(() => {
 	delete required(config.repos[REPO].dependencyUpdates).publishDrafts;
 	vi.unstubAllEnvs();
+	vi.restoreAllMocks();
 });
 function blob(value: string) {
 	return execFileSync("git", ["hash-object", "--stdin"], { cwd: gitDir, input: value, encoding: "utf8" }).trim();
@@ -288,6 +290,18 @@ describe("dependency draft publication", () => {
 		expect(result).toMatchObject({ status: "unknown", reason: "publication_unconfirmed" });
 		expect(w.gh.createDraft).toHaveBeenCalledOnce();
 		expect(JSON.stringify(result)).not.toContain("secret");
+	});
+	it("logs only HTTP status when GitHub refuses a draft, preserving reconciliation", async () => {
+		const w = await world();
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		w.gh.createDraft = vi.fn(async () => {
+			throw new GitHubError(403, "credential-secret", "repository-secret");
+		});
+		const result = await runDependencyPublication(input, w.deps);
+		expect(result).toMatchObject({ status: "unknown", reason: "publication_unconfirmed" });
+		expect(w.gh.createDraft).toHaveBeenCalledOnce();
+		expect(warn).toHaveBeenCalledWith("Dependency draft creation unconfirmed", { httpStatus: 403 });
+		expect(JSON.stringify([result, warn.mock.calls])).not.toContain("secret");
 	});
 	it("overlapping publishers converge on one immutable branch and one draft", async () => {
 		const w = await world();
