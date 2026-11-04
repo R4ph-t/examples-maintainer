@@ -1,0 +1,66 @@
+{
+  "artifact": "@render-lab/registry-maintenance-consumer",
+  "contractVersion": 1,
+  "observationVersion": 2,
+  "catalogRevision": "f14df2d0aa6628077f3bd974d8abd39a278c13cb",
+  "workingTree": false,
+  "sourceDigest": "sha256:3aa31b120553645cc985e282deeb13119e90d9336fbc6db3acf4cfcac4cd324d",
+  "inputs": [
+    {
+      "file": "package-lock.json",
+      "sha256": "sha256:79c3b044bf10566cc027f41ed2bf0770520219fc87c10db44a6aa5a856b481ae"
+    },
+    {
+      "file": "scripts/maintenance-consumer.ts",
+      "sha256": "sha256:936eb98442ecbf1ebde7a364c2017dc64571e2ac2a23bd116d3e9d7ab00afda1"
+    },
+    {
+      "file": "src/identity.ts",
+      "sha256": "sha256:40b12e84d5b43b0608338ab4452fcf6e58753d9a0f272b10868b5fe883abf11b"
+    },
+    {
+      "file": "src/maintenance-consumer.ts",
+      "sha256": "sha256:d1ef7cde9daeedb5c4fd35508725bdfbeb9256300bf2a1ffff1e2eaa749aeee6"
+    },
+    {
+      "file": "src/maintenance-contract.ts",
+      "sha256": "sha256:0b04411c75316a584280bb4927efc0490e0772b9a3220b512a2fef1efc9285e4"
+    },
+    {
+      "file": "src/maintenance-runtime.ts",
+      "sha256": "sha256:7beadd62133d08f3dc78313b04ffad4e65ca4bb09eb9b91a1bf809d858168c72"
+    },
+    {
+      "file": "src/maintenance.ts",
+      "sha256": "sha256:4eaec9d6389be4b721a261dc8bba71c663d162b1895fad83e3da5af26cc1d868"
+    },
+    {
+      "file": "src/schema.ts",
+      "sha256": "sha256:51c58361fa3c6c9ef2fbc9bb27456f8d03aa9adeee51821d54b526839dd8e2bf"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "index.js",
+      "sha256": "sha256:dee65ec4d9d1ac5440bd23f34fb455251480dda66b8cc42d42529a14c8ce69ce"
+    },
+    {
+      "file": "index.d.ts",
+      "sha256": "sha256:a87b06c257eedeef53780cb0da28b12e78277150b06a997b027dd96f5017acf9"
+    },
+    {
+      "file": "package.json",
+      "sha256": "sha256:b1969189f7ab727f8c896ce65517bf14e25ae68b182059f6a8620f3c94f183f7"
+    },
+    {
+      "file": "THIRD_PARTY_LICENSES.txt",
+      "sha256": "sha256:669bb383c09726f3f2d1e71be44b038fd6cc14081169130193804f25398e4d18"
+    }
+  ],
+  "build": {
+    "node": "v24.18.0",
+    "esbuild": "0.28.2",
+    "zod": "4.6.7",
+    "target": "node22"
+  }
+}

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { parseArgs } from "node:util";
 import { Render } from "@renderinc/sdk";
 import { requireEnv, TASKS } from "../app/config/index.js";
+import { historySettings, retainMaintenanceRun } from "../app/maintenance-history/index.js";
 import { SelectedDependencyInput, SelectedDependencyResult } from "../app/schemas/index.js";
 import { waitForMaintenanceTask } from "./lib/dependency-scanning.js";
 
@@ -9,6 +10,7 @@ const { values } = parseArgs({
 	options: { repo: { type: "string" }, "scan-run": { type: "string" }, candidate: { type: "string" }, wait: { type: "boolean" } },
 	strict: true,
 });
+const retention = historySettings();
 const input = SelectedDependencyInput.parse({ repo: values.repo, scanRunId: values["scan-run"], candidateName: values.candidate });
 const render = new Render({ token: requireEnv("RENDER_API_KEY"), useLocalDev: false });
 const run = await render.workflows.startTask(`${requireEnv("RENDER_WORKFLOW_SLUG")}/${TASKS.dependencyVerifySelected}`, [input], {
@@ -23,5 +25,7 @@ if (values.wait) {
 	if (result.repo !== input.repo || result.scanRunId !== input.scanRunId || result.candidateName !== input.candidateName)
 		throw new Error("Selection result identity mismatch");
 	console.log(JSON.stringify({ taskRunId: run.taskRunId, ...result }, null, 2));
+	if (retention && result.reviewRunId)
+		console.log(JSON.stringify({ event: "maintenance_evidence_retained", receipts: await retainMaintenanceRun(result.reviewRunId, retention) }));
 	process.exitCode = result.status === "verified" ? 0 : 1;
 }

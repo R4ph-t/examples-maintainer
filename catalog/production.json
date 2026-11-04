@@ -1,0 +1,452 @@
+{
+  "contract": "render-registry/maintenance",
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-04T22:13:56.505Z",
+  "mode": "execution",
+  "catalog": {
+    "revision": "f14df2d0aa6628077f3bd974d8abd39a278c13cb",
+    "inputDigest": "sha256:70f3fe2e2bac2909b3f6007cef7c908ff86c10c29aec0b105f0e27cc9b2b0d98",
+    "workingTree": false
+  },
+  "targets": [
+    {
+      "schemaVersion": 1,
+      "entry": "repository/@render-examples/django",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/render-examples/django",
+        "branch": "main",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "User-approved four-pilot catalog-backed maintenance integration, 2026-11-04; delegated from chat 01a1a27e-2898-7f90-bd40-b1650e4c82c4",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "runtime": "python",
+        "install": {
+          "name": "install",
+          "command": "python3 -m venv .venv && .venv/bin/python -m pip install --disable-pip-version-check --no-input --only-binary=:all: -r requirements.txt",
+          "timeoutSeconds": 240
+        },
+        "checks": [
+          {
+            "name": "dependencies",
+            "command": ".venv/bin/python -m pip check",
+            "timeoutSeconds": 30
+          },
+          {
+            "name": "framework",
+            "command": "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py check",
+            "timeoutSeconds": 30
+          },
+          {
+            "name": "migrations",
+            "command": "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py migrate --noinput",
+            "timeoutSeconds": 90
+          }
+        ],
+        "smoke": {
+          "start": "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/gunicorn mysite.wsgi:application --bind 127.0.0.1:3001",
+          "port": 3001,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello World!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "pip",
+      "egress": [
+        "pypi.org",
+        "files.pythonhosted.org"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "django-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:f965c792d96fc9a6d4f66ddfd79a98d405964aaab26556ca923120faf7f74d03",
+              "recipeHash": "d8f1d204ffc8c487cfdc107adca16d01453f2ba30fd68cceee94afc4197c292d",
+              "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "d8f1d204ffc8c487cfdc107adca16d01453f2ba30fd68cceee94afc4197c292d",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "django-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:f965c792d96fc9a6d4f66ddfd79a98d405964aaab26556ca923120faf7f74d03",
+              "recipeHash": "358a2d0157151d69edd08057fc9775543ac3b3c9ea20392bbda4b11a893baaf9",
+              "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "358a2d0157151d69edd08057fc9775543ac3b3c9ea20392bbda4b11a893baaf9",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:4414fc0c71435683b56bbfe9cf917a92249d110df6dfc39d5fa359288056657b"
+    },
+    {
+      "schemaVersion": 1,
+      "entry": "repository/@render-examples/express-hello-world",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/render-examples/express-hello-world",
+        "branch": "main",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "User-approved four-pilot catalog-backed maintenance integration, 2026-11-04; delegated from chat 01a1a27e-2898-7f90-bd40-b1650e4c82c4",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "install": {
+          "name": "install",
+          "command": "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
+          "timeoutSeconds": 180
+        },
+        "checks": [
+          {
+            "name": "syntax",
+            "command": "node --check app.js",
+            "timeoutSeconds": 30
+          }
+        ],
+        "smoke": {
+          "start": "PORT=3001 node app.js",
+          "port": 3001,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello from Render!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "yarn1",
+      "egress": [
+        "registry.npmjs.org",
+        "registry.yarnpkg.com"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "express-hello-world-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:be5691b331dc1d731bf3fb6665216d6b6ab7cbdb23e96507f673e2c900392b4e",
+              "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+              "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "express-hello-world-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:be5691b331dc1d731bf3fb6665216d6b6ab7cbdb23e96507f673e2c900392b4e",
+              "recipeHash": "219391655bd0ab9116f6d52c4987a2512b7d42dd2fbd7d20389fff26150a845a",
+              "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "219391655bd0ab9116f6d52c4987a2512b7d42dd2fbd7d20389fff26150a845a",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:a3f5ee69cad06d4b2a07ffa58c1b1c58d78cc404da89225cc0e1396e16aff4b9"
+    },
+    {
+      "schemaVersion": 1,
+      "entry": "repository/@render-examples/express-hello-world-typescript",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/render-examples/express-hello-world-typescript",
+        "branch": "master",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "User-approved four-pilot catalog-backed maintenance integration, 2026-11-04; delegated from chat 01a1a27e-2898-7f90-bd40-b1650e4c82c4",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "install": {
+          "name": "install",
+          "command": "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
+          "timeoutSeconds": 240
+        },
+        "checks": [
+          {
+            "name": "build",
+            "command": "npm run build",
+            "timeoutSeconds": 120
+          }
+        ],
+        "smoke": {
+          "start": "PORT=3001 node dist/app.js",
+          "port": 3001,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello from Render!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "yarn1",
+      "egress": [
+        "registry.npmjs.org",
+        "registry.yarnpkg.com"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "express-hello-world-typescript-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:00d7359c8964f8d740103f12c7992ff93c0ef80ebbbe3eba020a5a708bc4b741",
+              "recipeHash": "7ed5a56990d402bed5dfb847f58eb796894364dd3f44ce5417885df3bc4922c4",
+              "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "7ed5a56990d402bed5dfb847f58eb796894364dd3f44ce5417885df3bc4922c4",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "express-hello-world-typescript-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:00d7359c8964f8d740103f12c7992ff93c0ef80ebbbe3eba020a5a708bc4b741",
+              "recipeHash": "8927eb814d944a18fdd40a6367779d94dedf67a778c5fc6ed271acca9f0a9a8a",
+              "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "8927eb814d944a18fdd40a6367779d94dedf67a778c5fc6ed271acca9f0a9a8a",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:7732fde435bcd17375cbf9ff007f12ee145c88e72a9856ac303e8df2edc30239"
+    },
+    {
+      "schemaVersion": 1,
+      "entry": "repository/@render-examples/hapi-quick-start",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/render-examples/hapi-quick-start",
+        "branch": "master",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "User-approved four-pilot catalog-backed maintenance integration, 2026-11-04; delegated from chat 01a1a27e-2898-7f90-bd40-b1650e4c82c4",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "install": {
+          "name": "install",
+          "command": "npm ci",
+          "timeoutSeconds": 180
+        },
+        "checks": [
+          {
+            "name": "syntax",
+            "command": "node --check server.js",
+            "timeoutSeconds": 30
+          }
+        ],
+        "smoke": {
+          "start": "node server.js",
+          "port": 3000,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello, world!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "npm",
+      "egress": [
+        "registry.npmjs.org"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "hapi-quick-start-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:f1023248ac27be927482ee045a8e74e845addb6cf06a075509f543cc1a54f39a",
+              "recipeHash": "348b9f5988020bb72b9637e51e5db8730a4a2ba6c292d78c1ce94762a1d70e07",
+              "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "348b9f5988020bb72b9637e51e5db8730a4a2ba6c292d78c1ce94762a1d70e07",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "hapi-quick-start-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:f1023248ac27be927482ee045a8e74e845addb6cf06a075509f543cc1a54f39a",
+              "recipeHash": "fce5468ab04d4cd8ece318965028af2faa87a1f82824c0252e03d48e4e32a640",
+              "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "fce5468ab04d4cd8ece318965028af2faa87a1f82824c0252e03d48e4e32a640",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:2a7d7ff6ffc65c8fbe8113e1ed1d4b059ed33e7679d9184af4f4fe45a2379b2c"
+    }
+  ],
+  "contentHash": "sha256:3dba2c3def9c01e30a1a03ba1ccbde7b0ec918352d7256a09f84a46832462a78"
+}

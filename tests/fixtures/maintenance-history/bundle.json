@@ -1,0 +1,121 @@
+{
+  "contract": "render-registry/maintenance",
+  "schemaVersion": 1,
+  "mode": "execution",
+  "catalog": {
+    "revision": "cccccccccccccccccccccccccccccccccccccccc",
+    "inputDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "workingTree": false
+  },
+  "targets": [
+    {
+      "schemaVersion": 1,
+      "entry": "repository/test-maintenance",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/test/maintenance",
+        "branch": "main",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "synthetic test fixture only",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "install": {
+          "name": "install",
+          "command": "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
+          "timeoutSeconds": 180
+        },
+        "checks": [
+          {
+            "name": "syntax",
+            "command": "node --check app.js",
+            "timeoutSeconds": 30
+          }
+        ],
+        "smoke": {
+          "start": "PORT=3001 node app.js",
+          "port": 3001,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello from Render!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "yarn1",
+      "egress": [
+        "registry.npmjs.org",
+        "registry.yarnpkg.com"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "express-hello-world-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:be5691b331dc1d731bf3fb6665216d6b6ab7cbdb23e96507f673e2c900392b4e",
+              "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+              "toolHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "express-hello-world-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:be5691b331dc1d731bf3fb6665216d6b6ab7cbdb23e96507f673e2c900392b4e",
+              "recipeHash": "219391655bd0ab9116f6d52c4987a2512b7d42dd2fbd7d20389fff26150a845a",
+              "toolHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "219391655bd0ab9116f6d52c4987a2512b7d42dd2fbd7d20389fff26150a845a",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:16794aecb460925a23f0b5ca3d244352a298713b0c6da21e83f849aee87bd492"
+    }
+  ],
+  "generatedAt": "2026-01-01T00:00:00.000Z",
+  "contentHash": "sha256:def4e551c2289cfd99bdfeed0d97d1a3c0469aadf0aa28b8b4b209139e4ce375"
+}

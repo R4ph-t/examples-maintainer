@@ -335,3 +335,36 @@ before sandbox creation; cloning is anonymous, with no credential staging.
 Private repositories are rejected in this mode. App-based maintenance retains
 repository-scoped read-only clone tokens and Check Runs. PAT mode does not change
 the inherited agent workflows' authentication or publishing authority.
+
+### External maintenance history
+
+The optional catalog adapter replaces maintenance coverage with an approved execution
+export owned by `render-registry-catalog`. The bundled registry consumer validates
+identity and policy; factory validation still checks supported install recipes and
+sandbox egress. Discovery and preview exports do not authorize execution.
+
+Scheduled dispatchers can retain completed scan/review results through DX 360's
+authenticated ingestion API. DX 360 owns the append-only Postgres history. Records
+include the catalog and check identities, exact source/candidate, normalized
+observations, full native evidence and the reviewed target configuration. This is new
+retained-history state; GitHub claim ownership and Render task execution stay with
+their existing owners. The factory has no database credential.
+
+DX archives each approved execution bundle once, keyed by content digest and bound
+to its approved Workflow. Runs reference that immutable bundle. Ingestion validates
+against the originating bundle even after the deployed catalog changes; it cannot
+approve caller-supplied bundles. Historical validity does not imply current freshness
+or authorize execution under an old policy.
+
+Producer plus observation ID is immutable. Baseline and candidate observations are
+separate even within one Workflow run. A successful scan can contain high-severity
+findings; its completion is never converted into passing application verification.
+The receiver authenticates before parsing, bounds payload size, validates the catalog
+contract and input/evidence identity, and rejects conflicting retries. Browser history
+reads remain behind DX 360's existing session middleware. Only the exact ingestion
+path bypasses session auth and enforces its own machine credential.
+
+Receipt failure is visible and recoverable by child run ID. No automatic retry of
+sandbox side effects is added. Activation requires a clean catalog execution export,
+DX 360's migration/API deployment, and matching configuration on both sides; the
+current live schedules continue without this optional integration until configured.

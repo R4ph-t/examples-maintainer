@@ -464,3 +464,68 @@ GitHub PAT belongs in the optional `examples-maintainer-github` group, never in 
 sandbox or the public-mode cron. The publication task accepts a review run ID,
 loads its evidence from this Workflow, and rejects stale or incomplete results.
 See [draft publication](dependency-publishing.md).
+
+## Catalog coverage and retained maintenance history
+
+The registry project owns the maintenance contract and the reviewed target/profile
+records. This repository vendors its generated consumer in
+`vendor/registry-maintenance/`, including the source/output digests and licenses.
+Do not hand-edit that artifact; refresh it from the registry project's consumer build.
+
+The pinned consumer release is registry commit `f14df2d0aa6628077f3bd974d8abd39a278c13cb`.
+`catalog/production.json` is its clean execution export for the four scheduled pilots.
+`catalog/personal-acceptance.json` comes from the registry's separate acceptance branch
+and authorizes only the two personal test forks. These exports have different digests
+and are registered against separate Workflow IDs in DX; the personal bundle does not
+expand scheduled production coverage.
+
+By default the existing `factory.config.ts` coverage and schedules remain active.
+To switch coverage, deploy the same clean **execution** export to the Workflow and
+both dispatchers, set `MAINTENANCE_CATALOG_PATH` to its local path, and set
+`MAINTENANCE_CATALOG_DIGEST` to the explicitly selected content hash. Preview or dirty
+exports and digest mismatches stop startup. The current adapter supports 1–25
+repository targets with both scan and candidate verification enabled, and disables
+PR publication for catalog targets. It does not discover and execute arbitrary repos.
+
+For retention, configure these additional dispatcher settings:
+
+| Variable | Meaning |
+| --- | --- |
+| `MAINTENANCE_WORKFLOW_ID` | Allowed `wfl-...` source of completed evidence |
+| `MAINTENANCE_HISTORY_URL` | Exact HTTPS `/api/maintenance/ingest` endpoint on DX 360 |
+| `MAINTENANCE_HISTORY_TOKEN` | Dedicated ingestion credential, at least 32 characters |
+
+Put the credential in the optional `examples-maintainer-history` environment group,
+linked only to maintenance dispatchers. It is never sent to a Sandbox or the webhook
+gateway. DX 360 uses the same credential as `MAINTENANCE_INGEST_TOKEN`, the same catalog
+export/digest, and the same Workflow ID for its `maintenance:activate` deployment
+command. Run that command after the DX database migration and before dispatching
+against a new catalog version. It archives the approved bundle once by digest;
+ingestion resolves both current and historical results from that archive.
+The Workflow needs the catalog settings but
+no history token. Required setup/doctor keys are unchanged while this optional
+integration is disabled; `SERVICE_OPTIONAL_ENV` describes activation keys.
+
+The scan and daily verification commands retain completed child evidence when
+`--wait` is used. Selected verification retains its review too. A delivery failure
+makes the dispatcher fail after attempting the other completed children. It does not
+rerun sandbox work. Recover before Workflow retention expires with:
+
+```sh
+npm run maintenance:retain -- --run trn-REPLACE_WITH_CHILD_RUN_ID
+```
+
+Replay is safe: the receiver deduplicates producer/observation ID and rejects changed
+content. Baseline and candidate observations have separate IDs; candidates include
+an exact artifact digest. Complete normalized audit reports and review/patch evidence
+are copied into Postgres, not just linked to expiring Workflow output. Results with
+no attributable check evidence fail retention visibly for operator investigation.
+Hard-failed/canceled runs and source-resolution failures need separate attempt-event
+collection; this slice does not silently manufacture observations for them.
+
+The history API retains each approved bundle and associates run evidence with its
+originating digest. A catalog change does not require rolling back DX to receive old
+observations. The producer replay command still needs the originating export to
+construct the observation (recoverable from DX's `maintenance_catalogs` table);
+do not relabel old runs with a new profile. Automatic reconciliation/backfill, the persistent update
+queue, GitHub merge reconciliation, and human review writes are subsequent work.

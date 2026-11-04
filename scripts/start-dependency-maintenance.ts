@@ -1,10 +1,11 @@
-import { parseArgs } from "node:util";
 import { mkdir, writeFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { join, resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { Render } from "@renderinc/sdk";
 import { z } from "zod";
 import { config, requireEnv, TASKS } from "../app/config/index.js";
 import { GitHubError, maintenanceRevision } from "../app/github/index.js";
+import { historySettings, retainMaintenanceRuns } from "../app/maintenance-history/index.js";
 import { DependencyReviewResult } from "../app/schemas/index.js";
 import { planDependencyMaintenance, waitForDependencyMaintenance } from "./lib/dependency-maintenance.js";
 
@@ -18,6 +19,7 @@ const { values } = parseArgs({
 	strict: true,
 });
 if (values.out && !values.wait) throw new Error("--out requires --wait");
+const retention = historySettings();
 const plan = await planDependencyMaintenance(config, values.window ?? new Date().toISOString().slice(0, 10), async (repo, branch) => {
 	try {
 		return await maintenanceRevision(repo, branch);
@@ -37,6 +39,17 @@ else {
 	if (values.wait) {
 		const result = await waitForDependencyMaintenance(() => render.workflows.getTaskRun(run.taskRunId));
 		console.log(JSON.stringify({ taskRunId: run.taskRunId, ...result }, null, 2));
+		if (retention)
+			console.log(
+				JSON.stringify({
+					event: "maintenance_evidence_retained",
+					receipts: await retainMaintenanceRuns(
+						result.results.flatMap((row) => (row.runId ? [row.runId] : [])),
+						retention,
+					),
+				}),
+			);
+
 		if (values.out) {
 			const dir = resolve(values.out);
 			await mkdir(dir, { recursive: true });

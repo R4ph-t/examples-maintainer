@@ -1,0 +1,42 @@
+{
+  "repo": "test/maintenance",
+  "sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "runId": "trn-scan1",
+  "status": "completed",
+  "completedAt": "2026-01-01T00:00:01.000Z",
+  "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+  "toolHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "inventoryHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "runtime": "node test",
+  "sandboxId": "sbx-test",
+  "cleanup": "terminated",
+  "audit": {
+    "tool": "npm",
+    "status": "completed",
+    "scannedAt": "2026-01-01T00:00:00.000Z",
+    "findings": [
+      {
+        "id": "GHSA-test",
+        "package": "express",
+        "version": "5.0.0",
+        "severity": "high",
+        "direct": true,
+        "fixVersions": [
+          "5.3.0"
+        ]
+      }
+    ]
+  },
+  "discovery": {
+    "candidates": [],
+    "skipped": []
+  },
+  "rankedCandidates": [],
+  "priority": "high",
+  "unratedFindings": 0,
+  "priorityBasis": "reported_severity_and_fix_metadata",
+  "exploitation": "not_assessed",
+  "reachability": "not_assessed",
+  "verification": "not_run",
+  "publishing": "disabled"
+}

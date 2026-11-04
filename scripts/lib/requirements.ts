@@ -66,7 +66,7 @@ export type Service = "gateway" | "workflows" | "maintenance";
 /** The credential each agent's harness declares (app/agents/), once each, in agent order. Workflows sends them to its sandboxes. */
 export const HARNESS_KEY_ENV: readonly string[] = [...new Set(AGENTS.map((agent) => agent.harness.credential))];
 
-/** Each service's env vars, exactly as render.yaml declares them (through its env groups or directly). */
+/** Required env vars, exactly as render.yaml declares them. Optional integrations are listed in SERVICE_OPTIONAL_ENV. */
 export const SERVICE_ENV: Readonly<Record<Service, readonly string[]>> = {
 	gateway: ["GITHUB_WEBHOOK_SECRET", "RENDER_API_KEY", "RENDER_WORKFLOW_SLUG"],
 	workflows: ["RENDER_API_KEY", "RENDER_WORKSPACE_ID", "GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", ...HARNESS_KEY_ENV],
@@ -111,13 +111,36 @@ export const MAINTENANCE_PAT_ENV_GROUP: EnvGroupSpec = {
 	keys: ["MAINTENANCE_GITHUB_TOKEN", "MAINTENANCE_PUBLISH_DRAFTS"],
 };
 
+/** Optional retention integration. Kept separate from required setup keys until activated. */
+export const MAINTENANCE_HISTORY_ENV = [
+	"MAINTENANCE_CATALOG_PATH",
+	"MAINTENANCE_CATALOG_DIGEST",
+	"MAINTENANCE_WORKFLOW_ID",
+	"MAINTENANCE_HISTORY_URL",
+	"MAINTENANCE_HISTORY_TOKEN",
+] as const;
+export const SERVICE_OPTIONAL_ENV: Readonly<Partial<Record<Service, readonly string[]>>> = { maintenance: MAINTENANCE_HISTORY_ENV };
+export const MAINTENANCE_HISTORY_ENV_GROUP: EnvGroupSpec = {
+	name: "examples-maintainer-history",
+	services: ["maintenance"],
+	keys: MAINTENANCE_HISTORY_ENV,
+};
+
 /** The group a service reads `key` from, if any. */
 export function envGroupFor(service: Service, key: string): EnvGroupSpec | undefined {
-	return [...ENV_GROUPS, ...MAINTENANCE_ENV_GROUPS].find((group) => group.services.includes(service) && group.keys.includes(key));
+	return [...ENV_GROUPS, ...MAINTENANCE_ENV_GROUPS, MAINTENANCE_HISTORY_ENV_GROUP].find(
+		(group) => group.services.includes(service) && group.keys.includes(key),
+	);
 }
 
 /** Values doctor must never print. */
-export const SECRET_ENV: readonly string[] = ["GITHUB_WEBHOOK_SECRET", "RENDER_API_KEY", "GITHUB_APP_PRIVATE_KEY", "MAINTENANCE_GITHUB_TOKEN"];
+export const SECRET_ENV: readonly string[] = [
+	"MAINTENANCE_HISTORY_TOKEN",
+	"GITHUB_WEBHOOK_SECRET",
+	"RENDER_API_KEY",
+	"GITHUB_APP_PRIVATE_KEY",
+	"MAINTENANCE_GITHUB_TOKEN",
+];
 
 const LEVELS = ["none", "read", "write", "admin"];
 

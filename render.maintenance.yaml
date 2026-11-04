@@ -1,5 +1,5 @@
 # Maintenance controller uses the approved PAT; draft publication remains separately gated.
-# Create examples-maintainer and examples-maintainer-github before applying this Blueprint.
+# Create examples-maintainer, examples-maintainer-github and examples-maintainer-history first.
 services:
   - type: workflow
     name: examples-maintainer
@@ -15,6 +15,10 @@ services:
       - fromGroup: examples-maintainer-github
       - key: MAINTENANCE_MODE
         value: pat
+      - key: MAINTENANCE_CATALOG_PATH
+        value: catalog/production.json
+      - key: MAINTENANCE_CATALOG_DIGEST
+        value: sha256:3dba2c3def9c01e30a1a03ba1ccbde7b0ec918352d7256a09f84a46832462a78
   - type: cron
     name: examples-maintainer-daily
     runtime: node
@@ -28,6 +32,7 @@ services:
     startCommand: npm run maintenance:dependencies -- --wait
     envVars:
       - fromGroup: examples-maintainer
+      - fromGroup: examples-maintainer-history
       - key: RENDER_WORKFLOW_SLUG
         fromService:
           type: workflow
@@ -46,6 +51,7 @@ services:
     startCommand: npm run maintenance:scan -- --wait
     envVars:
       - fromGroup: examples-maintainer
+      - fromGroup: examples-maintainer-history
       - key: RENDER_WORKFLOW_SLUG
         fromService:
           type: workflow

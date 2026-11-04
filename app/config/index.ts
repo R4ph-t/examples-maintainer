@@ -1,6 +1,9 @@
-import config, { type FactoryConfig, type RepoConfig } from "../../factory.config.js";
+import factoryConfig, { type FactoryConfig, type RepoConfig } from "../../factory.config.js";
 import { MaintenanceRecipe } from "../schemas/maintenance.js";
 
+import { catalogConfiguration } from "../catalog/index.js";
+
+const config = catalogConfiguration(factoryConfig);
 export { config, type RepoConfig };
 
 /** A lowercase hostname with at least one dot, as the Sandbox egress rules take it; `*.` only as the leftmost label. */

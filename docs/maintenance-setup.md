@@ -137,8 +137,10 @@ The previous disposable-fork live tests separately covered a deliberately broken
 response, healthy recovery, and a failed install. They do not replace hosted-run
 verification.
 
-Results use Render's Workflow retention. There is no long-term history database,
-custom dashboard, notification service, database fixture provisioning, automatic
-repair, or GitHub publication in this phase. Tested dependency patches are
+Results remain in Render Workflows, and the configured history integration additionally
+retains completed evidence and its originating catalog bundle in DX 360's Postgres.
+See [catalog coverage and history](configuration.md#catalog-coverage-and-retained-maintenance-history)
+for activation and replay. There is no notification service, database fixture
+provisioning, automatic repair, or GitHub publication in this phase. Tested dependency patches are
 retained by the [dependency loop](dependency-maintenance.md). Add reviewed recipes to expand
 coverage; use the inventory to keep untested repos visible.

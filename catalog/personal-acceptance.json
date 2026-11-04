@@ -1,0 +1,239 @@
+{
+  "contract": "render-registry/maintenance",
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-04T22:14:06.526Z",
+  "mode": "execution",
+  "catalog": {
+    "revision": "42fdb35cf8931b90953447dd796f4588026a2915",
+    "inputDigest": "sha256:2852bd2a6debdf432ce0a10f7b79eaa4d841e71313c0d8f5f7a11879642b73b2",
+    "workingTree": false
+  },
+  "targets": [
+    {
+      "schemaVersion": 1,
+      "entry": "repository/@r4ph-t/django-mlpc1ydx",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/R4ph-t/django-mlpc1ydx",
+        "branch": "master",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "User-approved isolated Express and Django fork acceptance for maintenance history rollout, 2026-11-04; chat 01a1a27e-2898-7f90-bd40-b1650e4c82c4. This branch is not production catalog coverage.",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "runtime": "python",
+        "install": {
+          "name": "install",
+          "command": "python3 -m venv .venv && .venv/bin/python -m pip install --disable-pip-version-check --no-input --only-binary=:all: -r requirements.txt",
+          "timeoutSeconds": 240
+        },
+        "checks": [
+          {
+            "name": "dependencies",
+            "command": ".venv/bin/python -m pip check",
+            "timeoutSeconds": 30
+          },
+          {
+            "name": "framework",
+            "command": "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py check",
+            "timeoutSeconds": 30
+          },
+          {
+            "name": "migrations",
+            "command": "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/python manage.py migrate --noinput",
+            "timeoutSeconds": 90
+          }
+        ],
+        "smoke": {
+          "start": "DATABASE_URL=sqlite:////opt/factory/scratch/django.sqlite3 .venv/bin/gunicorn mysite.wsgi:application --bind 127.0.0.1:3001",
+          "port": 3001,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello World!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "pip",
+      "egress": [
+        "pypi.org",
+        "files.pythonhosted.org"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "personal-django-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:f965c792d96fc9a6d4f66ddfd79a98d405964aaab26556ca923120faf7f74d03",
+              "recipeHash": "d8f1d204ffc8c487cfdc107adca16d01453f2ba30fd68cceee94afc4197c292d",
+              "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "d8f1d204ffc8c487cfdc107adca16d01453f2ba30fd68cceee94afc4197c292d",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "personal-django-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:f965c792d96fc9a6d4f66ddfd79a98d405964aaab26556ca923120faf7f74d03",
+              "recipeHash": "358a2d0157151d69edd08057fc9775543ac3b3c9ea20392bbda4b11a893baaf9",
+              "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "358a2d0157151d69edd08057fc9775543ac3b3c9ea20392bbda4b11a893baaf9",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:d4024b9874f1c13d4e4e06a9125fc371241b0fd73555599383f04def6ef69243"
+    },
+    {
+      "schemaVersion": 1,
+      "entry": "repository/@r4ph-t/express-hello-world",
+      "source": {
+        "kind": "moving-branch",
+        "repository": "https://github.com/R4ph-t/express-hello-world",
+        "branch": "main",
+        "path": "."
+      },
+      "execution": {
+        "enabled": true,
+        "approvalReference": "User-approved isolated Express and Django fork acceptance for maintenance history rollout, 2026-11-04; chat 01a1a27e-2898-7f90-bd40-b1650e4c82c4. This branch is not production catalog coverage.",
+        "candidateVerification": true,
+        "pullRequestPublication": false,
+        "merge": false
+      },
+      "recipe": {
+        "install": {
+          "name": "install",
+          "command": "npm exec --yes --package=yarn@1.22.22 -- yarn install --frozen-lockfile --non-interactive",
+          "timeoutSeconds": 180
+        },
+        "checks": [
+          {
+            "name": "syntax",
+            "command": "node --check app.js",
+            "timeoutSeconds": 30
+          }
+        ],
+        "smoke": {
+          "start": "PORT=3001 node app.js",
+          "port": 3001,
+          "path": "/",
+          "expectedStatus": 200,
+          "bodyIncludes": "Hello from Render!",
+          "timeoutSeconds": 30
+        }
+      },
+      "packageManager": "yarn1",
+      "egress": [
+        "registry.npmjs.org",
+        "registry.yarnpkg.com"
+      ],
+      "checks": [
+        {
+          "operation": "dependency-scan",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "personal-express-hello-world-dependency-scan",
+            "scope": "security",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:be5691b331dc1d731bf3fb6665216d6b6ab7cbdb23e96507f673e2c900392b4e",
+              "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+              "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2"
+            },
+            "freshForHours": 6
+          },
+          "everyHours": 6,
+          "recipeHash": "2129a080e6634391e3d90f3977b9229dae8ba95d0c0544e5bb48078117848458",
+          "recipeHashAlgorithm": "examples-maintainer/scan-recipe-v1",
+          "toolHash": "88d2bd2d8a9269e274f7dde0048630b7e429acf186ee1f6ee92ffd2fa58de0d2",
+          "toolHashAlgorithm": "examples-maintainer/scan-tools-v1"
+        },
+        {
+          "operation": "application-verification",
+          "profile": {
+            "schemaVersion": 1,
+            "id": "personal-express-hello-world-application-verification",
+            "scope": "application-smoke",
+            "suite": {
+              "repository": "https://github.com/R4ph-t/examples-maintainer",
+              "path": "factory.config.ts",
+              "revision": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "harness": {
+              "name": "examples-maintainer",
+              "version": "244e097f111beda6cf535f065bbdc7d4da94ba9c"
+            },
+            "model": null,
+            "grader": null,
+            "configuration": {
+              "recipeDigest": "sha256:be5691b331dc1d731bf3fb6665216d6b6ab7cbdb23e96507f673e2c900392b4e",
+              "recipeHash": "219391655bd0ab9116f6d52c4987a2512b7d42dd2fbd7d20389fff26150a845a",
+              "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc"
+            },
+            "freshForHours": 24
+          },
+          "everyHours": 24,
+          "recipeHash": "219391655bd0ab9116f6d52c4987a2512b7d42dd2fbd7d20389fff26150a845a",
+          "recipeHashAlgorithm": "examples-maintainer/verification-recipe-v1",
+          "toolHash": "4072b7c97dfa1245e44a335a550f3d52abe9cdcd37d960fd79f8567c322e54fc",
+          "toolHashAlgorithm": "sha256-file"
+        }
+      ],
+      "targetDigest": "sha256:2800c786bfb3c5d4726cc944d36e28e4aa274fb72244181ca92e7e784f5ffe78"
+    }
+  ],
+  "contentHash": "sha256:ad1d69fcfb125d57d6a3cfca74d1024df1760c803aaa36e3382909491302ccfe"
+}

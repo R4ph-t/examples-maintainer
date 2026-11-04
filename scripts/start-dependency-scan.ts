@@ -5,6 +5,7 @@ import { Render } from "@renderinc/sdk";
 import { z } from "zod";
 import { config, requireEnv, TASKS } from "../app/config/index.js";
 import { maintenanceRevision } from "../app/github/index.js";
+import { historySettings, retainMaintenanceRuns } from "../app/maintenance-history/index.js";
 import { DependencyScanResult, DependencyScanSweepResult } from "../app/schemas/index.js";
 import { planDependencyScan, waitForMaintenanceTask } from "./lib/dependency-scanning.js";
 
@@ -13,6 +14,7 @@ const { values } = parseArgs({
 	strict: true,
 });
 if (values.out && !values.wait) throw new Error("--out requires --wait");
+const retention = historySettings();
 const plan = await planDependencyScan(config, values.window ?? new Date().toISOString(), maintenanceRevision);
 if (values["dry-run"]) console.log(JSON.stringify(plan, null, 2));
 else {
@@ -25,6 +27,17 @@ else {
 	if (values.wait) {
 		const result = await waitForMaintenanceTask(() => render.workflows.getTaskRun(run.taskRunId), DependencyScanSweepResult);
 		console.log(JSON.stringify({ taskRunId: run.taskRunId, ...result }, null, 2));
+		if (retention)
+			console.log(
+				JSON.stringify({
+					event: "maintenance_evidence_retained",
+					receipts: await retainMaintenanceRuns(
+						result.results.flatMap((row) => (row.runId ? [row.runId] : [])),
+						retention,
+					),
+				}),
+			);
+
 		if (values.out) {
 			const dir = resolve(values.out);
 			await mkdir(dir, { recursive: true });
