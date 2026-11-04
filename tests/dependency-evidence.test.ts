@@ -28,7 +28,7 @@ function world() {
 describe("trusted dependency evidence", () => {
 	it("loads provider-owned evidence with matching task and input identities", async () => {
 		const w = world();
-		expect(await w.run()).toEqual(w.review);
+		expect(await w.run()).toEqual({ review: w.review, workflowId: "wfl-maintenance" });
 		expect(w.fetch.mock.calls.every(([url, options]) => String(url).startsWith("https://api.render.com/v1/") && options?.redirect === "error")).toBe(
 			true,
 		);

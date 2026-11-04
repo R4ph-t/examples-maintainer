@@ -16,6 +16,7 @@ import type { AuditReport } from "../app/schemas/audits.js";
 import type { DependencyCandidate, DependencyReviewResult, MaintenanceResult } from "../app/schemas/index.js";
 import { buildArtifact } from "../app/workflows/dependencies/artifact.js";
 import { compareAuditReports } from "../app/workflows/dependencies/audit.js";
+import { dependencyProposalBody } from "../app/workflows/dependencies/proposal-body.js";
 import { runDependencyPublication } from "../app/workflows/dependencies/publish.js";
 import { REPO } from "./fixtures/config.js";
 
@@ -172,7 +173,7 @@ async function world() {
 			return p;
 		}),
 	};
-	const loadReview = vi.fn(async () => review);
+	const loadReview = vi.fn(async () => ({ review, workflowId: "wfl-maintenance" }));
 	return { review, refs, commits, entries, pulls, writes, gh, loadReview, deps: { loadReview, github: () => gh, enabled: true, now } };
 }
 
@@ -197,9 +198,32 @@ describe("dependency draft publication", () => {
 		expect(w.loadReview).toHaveBeenCalledWith(RUN);
 		expect(w.pulls[0]).toMatchObject({ draft: true, baseRef: "main" });
 		expect(w.pulls[0].body).toContain(SHA);
+		expect(w.pulls[0].body).toContain("## Verified in Render Sandboxes");
+		expect(w.pulls[0].body).toContain("https://dashboard.render.com/wf/wfl-maintenance/runs/trn-review1");
+		expect(w.pulls[0].body).toContain("`npm ci` | ✅ Passed (exit 0, 0.10s) | ✅ Passed (exit 0, 0.10s)");
+		expect(w.pulls[0].body).toContain("`build`");
+		expect(w.pulls[0].body).not.toContain("No separate build step");
 		const count = w.writes.length;
 		expect((await runDependencyPublication(input, w.deps)).status).toBe("reused");
 		expect(w.writes).toHaveLength(count);
+	});
+	it("reports missing build coverage and database limits without exposing sandbox logs", async () => {
+		const w = await world();
+		const recipe = structuredClone(required(config.repos[REPO].maintenance));
+		recipe.checks = [{ name: "syntax", command: "node --check app.js | cat", timeoutSeconds: 30 }];
+		recipe.smoke.start = "DATABASE_URL=sqlite:////tmp/test.sqlite npm start";
+		for (const run of [required(w.review.baseline), required(w.review.verification)]) {
+			required(run.stages.find((stage) => stage.name === "build")).name = "syntax";
+			for (const stage of run.stages) stage.output = "secret-from-sandbox-log";
+		}
+		const body = dependencyProposalBody(w.review, recipe, "wfl-maintenance");
+		expect(body).toContain("No separate build step is configured");
+		expect(body).toContain("PostgreSQL integration was not tested");
+		expect(body).toContain("node --check app.js \\| cat");
+		expect(body).toContain("GET http://127.0.0.1:3001/");
+		expect(body).toContain("`sbx-after`; cleanup: `terminated`");
+		expect(body).not.toContain("secret-from-sandbox-log");
+		expect(() => dependencyProposalBody(w.review, recipe, "../evil")).toThrow("Invalid execution identity");
 	});
 	it.each(["repo", "runId", "artifact", "patch", "recipe", "smoke", "runtime", "exit", "audit", "age"])(
 		"rejects tampered or stale %s evidence before writes",

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { type RepoContext, requireRepo } from "../../config/index.js";
-import { codeSpan, sanitizeInline } from "../../format/index.js";
+import { sanitizeInline } from "../../format/index.js";
 import {
 	type DependencyPublishingClient,
 	type DependencyPull,
@@ -16,10 +16,11 @@ import { DependencyPublishInput, DependencyPublishResult } from "../../schemas/d
 import { MaintenanceRecipe } from "../../schemas/maintenance.js";
 import { buildArtifact } from "./artifact.js";
 import { compareAuditReports } from "./audit.js";
+import { dependencyProposalBody } from "./proposal-body.js";
 
 export interface DependencyPublicationDeps {
 	/** Must fetch a completed dependency-review from the configured Workflow and verify its task/run identity. Never accepts request-supplied review content. */
-	loadReview: (runId: string) => Promise<unknown>;
+	loadReview: (runId: string) => Promise<{ review: unknown; workflowId: string }>;
 	github?: (repo: RepoContext) => DependencyPublishingClient;
 	/** Controller-only test seam. Production requires MAINTENANCE_PUBLISH_DRAFTS=true as well as repo opt-in. */
 	enabled?: boolean;
@@ -53,7 +54,7 @@ export async function runDependencyPublication(raw: unknown, deps: DependencyPub
 	result.status = "unknown";
 	try {
 		const loaded = await deps.loadReview(input.reviewRunId);
-		const parsed = DependencyReviewResult.safeParse(loaded);
+		const parsed = DependencyReviewResult.safeParse(loaded.review);
 		if (!parsed.success) throw new Refusal("rejected", "invalid_review");
 		const review = parsed.data;
 		if (
@@ -153,7 +154,7 @@ export async function runDependencyPublication(raw: unknown, deps: DependencyPub
 					branch,
 					base: repo.config.baseBranch,
 					title: sanitizeInline(`Update ${review.candidate.name} to ${review.candidate.toVersion}`).slice(0, 200),
-					body: proposalBody(review, marker),
+					body: dependencyProposalBody(review, MaintenanceRecipe.parse(repo.config.maintenance), loaded.workflowId),
 				});
 				validatePull(pull, repo, branch, marker, actor);
 				if (pull.state !== "open" || !pull.draft || pull.headSha !== head) throw new Refusal("rejected", "pull_modified");
@@ -240,28 +241,6 @@ function validatePull(p: DependencyPull, repo: RepoContext, branch: string, mark
 		!p.body.includes(marker)
 	)
 		throw new Refusal("rejected", "pull_modified");
-}
-function proposalBody(review: DependencyReviewResult, marker: string): string {
-	const c = review.candidate;
-	if (!c || !review.artifact || !review.audit?.comparison) throw new Refusal("rejected", "invalid_review");
-	const audit = review.audit.comparison;
-	return [
-		marker,
-		"",
-		`Updates ${codeSpan(c.name)} from ${codeSpan(c.fromVersion)} to ${codeSpan(c.toVersion)}.`,
-		"",
-		`Tested base: ${codeSpan(review.sha)}`,
-		`Artifact: ${codeSpan(review.artifact.id)}`,
-		`Review run: ${codeSpan(review.runId)}`,
-		"",
-		"Baseline and the exact proposed files passed installation, configured checks, and HTTP smoke checks in separate fresh sandboxes. All three sandboxes were confirmed terminated.",
-		"",
-		`Audit comparison: ${audit.fixed.length} fixed, ${audit.remaining.length} remaining, ${audit.introduced.length} introduced; no newly introduced high/critical or unknown-severity findings.`,
-		"",
-		...audit.fixed.slice(0, 20).map((f) => `- Fixed ${codeSpan(f.id)} in ${codeSpan(f.package)}.`),
-		"",
-		"This is a draft for human review. The checks cover the configured recipe, not every application behavior. The base may advance after publication; revalidate before merging.",
-	].join("\n");
 }
 function digest(value: string | Buffer) {
 	return createHash("sha256").update(value).digest("hex");

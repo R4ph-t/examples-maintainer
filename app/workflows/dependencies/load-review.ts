@@ -56,5 +56,5 @@ export async function loadDependencyReview(reviewRunId: string, publisherRunId: 
 	const [input] = z.tuple([VerifyRepositoryInput]).parse(reviewRun.input);
 	const [review] = z.tuple([DependencyReviewResult]).parse(reviewRun.results);
 	if (review.runId !== reviewRunId || review.repo !== input.repo || review.sha !== input.sha) throw new Error("Review evidence identity mismatch");
-	return review;
+	return { review, workflowId: reviewTask.workflowId };
 }
