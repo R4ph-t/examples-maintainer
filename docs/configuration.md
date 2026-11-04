@@ -506,6 +506,14 @@ The Workflow needs the catalog settings but
 no history token. Required setup/doctor keys are unchanged while this optional
 integration is disabled; `SERVICE_OPTIONAL_ENV` describes activation keys.
 
+If DX uses Render's OAuth authentication proxy, add an excluded endpoint in its
+Dashboard Authentication settings for exactly **POST `/api/maintenance/ingest`**,
+preserving existing exclusions and leaving authentication enabled. The API still
+requires the dedicated ingestion bearer credential. Other paths and methods remain
+behind Okta. Check the endpoint without following redirects: a 302 to the identity
+provider means requests are not reaching ingestion yet. The dispatcher refuses
+redirects so its credential cannot be forwarded to a login endpoint.
+
 The scan and daily verification commands retain completed child evidence when
 `--wait` is used. Selected verification retains its review too. A delivery failure
 makes the dispatcher fail after attempting the other completed children. It does not
