@@ -5,10 +5,11 @@ advisory evidence; selected verification builds and runs an exact proposed updat
 A scan never means an application passed its checks, and neither timestamp is a
 human review timestamp.
 
-The Blueprint specifies a six-hour scan cadence. Applying this source change
+The Blueprint specifies a six-hour scan cadence alongside daily full verification.
+Applying this source change
 does not update an existing deployment or cron; deploy and accept the new tasks
-before replacing the hosted schedule. The original combined
-`maintenance:dependencies` command remains available for manual full sweeps.
+before enabling the hosted schedule. The combined `maintenance:dependencies`
+command retains its daily 03:00 UTC run and remains available manually.
 
 ## Scan configured repositories
 
@@ -103,10 +104,12 @@ records its key and lifetime, without claiming a provider snapshot ID lookup.
 
 ## Scheduling and acceptance
 
-`render.maintenance.yaml` keeps the existing `examples-maintainer-daily` resource
-name to replace its command rather than create a second cron. Its desired command
-is `npm run maintenance:scan -- --wait`, scheduled at 00:00, 06:00, 12:00, and
-18:00 UTC. Automatic deployment remains disabled.
+`render.maintenance.yaml` defines `examples-maintainer-scan`, running
+`npm run maintenance:scan -- --wait` at 00:00, 06:00, 12:00, and 18:00 UTC.
+The separate `examples-maintainer-daily` retains full dependency verification at
+03:00 UTC. Its combined loop selects one eligible update per repository; it does
+not consume a persistent scan queue. Explicit selection from scan evidence is
+also available. Automatic deployment remains disabled on both jobs.
 
 The scan dispatch key includes a canonical six-hour UTC window and the existing
 revision/recipe plan identity. `--window` accepts a UTC ISO datetime and rounds

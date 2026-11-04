@@ -16,8 +16,25 @@ services:
       - key: MAINTENANCE_MODE
         value: pat
   - type: cron
-    # Keep the existing resource name when replacing its daily combined sweep.
     name: examples-maintainer-daily
+    runtime: node
+    region: oregon
+    plan: starter
+    repo: https://github.com/R4ph-t/examples-maintainer
+    branch: feat/repository-maintenance
+    autoDeployTrigger: off
+    schedule: "0 3 * * *"
+    buildCommand: npm ci
+    startCommand: npm run maintenance:dependencies -- --wait
+    envVars:
+      - fromGroup: examples-maintainer
+      - key: RENDER_WORKFLOW_SLUG
+        fromService:
+          type: workflow
+          name: examples-maintainer
+          property: slug
+  - type: cron
+    name: examples-maintainer-scan
     runtime: node
     region: oregon
     plan: starter

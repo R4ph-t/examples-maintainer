@@ -67,8 +67,9 @@ Publish the tested branch before deployment. `render.maintenance.yaml` describes
 
 - `examples-maintainer`: a Workflow, started with `npm run start:maintenance`.
 - `examples-maintainer-daily`: a Starter Cron Job, running
+  `npm run maintenance:dependencies -- --wait` at **03:00 UTC daily**.
+- `examples-maintainer-scan`: a separate Starter Cron Job, running
   `npm run maintenance:scan -- --wait` at **00:00, 06:00, 12:00, and 18:00 UTC**.
-  The existing resource name is retained to avoid creating a second cron.
 
 This is the desired configuration; existing hosted services change only after
 deployment. The new scan path requires live acceptance before scheduling.
@@ -118,7 +119,7 @@ and recipe identity. Provider deduplication can reuse a run across releases and
 is not a permanent history or lock. Inspect task version and start time when
 accepting a new deployment; do not mistake an earlier run for new evidence.
 
-The original full combined sweep remains available as
+The full combined sweep continues daily and remains available manually as
 `maintenance:dependencies -- --wait`, and health-only checks as
 `maintenance:dispatch -- --wait`. For their result details, see
 [dependency maintenance](dependency-maintenance.md) and [maintenance](maintenance.md).

@@ -3,10 +3,10 @@
 The dependency loop is enabled for the configured Express JavaScript,
 Express TypeScript, Hapi, and Django examples. It produces review artifacts. GitHub publication is disabled by default. A GitHub PAT is not required in public mode.
 
-The default Blueprint schedule now runs the separate [scan pass](dependency-scanning.md).
+The Blueprint runs the separate [scan pass](dependency-scanning.md) every six hours.
 Use retained scan evidence to select which update receives the full verification
-below. The combined `maintenance:dependencies` command remains available for
-manual regression sweeps; it is no longer the intended frequent scheduled job.
+below. The combined `maintenance:dependencies` command retains its daily full
+verification sweep and is also available manually.
 
 ## What each full verification does
 
@@ -81,7 +81,7 @@ candidate `.patch` files. Filenames include the review status so rejected patche
 cannot be mistaken for approved ones. Review the JSON alongside any patch.
 
 For a manual combined sweep, run `npm run maintenance:dependencies -- --wait`.
-The Blueprint now specifies `maintenance:scan -- --wait`; existing hosted cron
+The Blueprint also specifies a separate `maintenance:scan -- --wait` cron; existing hosted cron
 configuration changes only when explicitly deployed. Child Workflow
 results retain the full patch and comparison evidence; the sweep retains compact
 summaries and child run IDs. Retention follows Render's Workflow retention. There

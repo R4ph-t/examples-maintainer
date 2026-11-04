@@ -196,7 +196,7 @@ can be tested the next day. Provider idempotency has bounded retention and can r
 Workflow versions; it is not a permanent run ledger. Use a distinct key for a
 fresh acceptance run after changing execution behavior.
 
-For frequent scanning, `render.maintenance.yaml` specifies one Render Cron Job:
+For frequent scanning, `render.maintenance.yaml` specifies `examples-maintainer-scan`:
 
 - build command: `npm ci`
 - start command: `npm run maintenance:scan -- --wait`
@@ -204,7 +204,8 @@ For frequent scanning, `render.maintenance.yaml` specifies one Render Cron Job:
 - scoped Render key, workspace ID, Workflow slug, and maintenance mode through
   environment groups; GitHub credentials only when needed
 
-This desired configuration requires deployment and manual acceptance before
+The separate `examples-maintainer-daily` preserves full dependency verification
+at 03:00 UTC. The scan schedule requires deployment and manual acceptance before
 scheduling. Follow [dependency scanning](dependency-scanning.md) to inspect scan
 results and select an update for full verification. The legacy combined
 `maintenance:dependencies -- --wait` and health-only
